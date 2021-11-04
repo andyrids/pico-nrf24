@@ -4,9 +4,7 @@ A work in progress for an NRF24L01 driver for the Raspberry Pi Pico.
 
 **TODO**:  
 
-- [ ] Update documentation
 - [ ] Further testing & debugging
-- [X] Fix caching of RX_ADDR_P0 address issue
 - [ ] Implement dynamic payloads
 - [ ] Implement auto-acknowledgement with payloads
 - [ ] Design optional IRQ pin with ISR implementation
@@ -127,7 +125,7 @@ uint8_t payload = 100;
 set_payload_size(ALL_DATA_PIPES, sizeof(payload));
 ```  
 
-4. If you plan to alternate an NRF24L01 device between RX Mode and TX Mode, rather than have dedicated primary transmitter and primary receiver setup - then the `set_rx_address` function should be used next, before setting the TX address (set_tx_address). This function sets the 5 byte address to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 4 MSB of data pipe 1 address and should be set with a 1 byte address. If you want to use a 5 byte buffer for data pipes 2 - 5, then the function will automatically set one bye (buffer[0]). This might be useful to visually keep track of the full addresses set to each data pipe when coding. The NRF24L01 has data pipes 0 and 1 enabled by default, but if you set an address for data pipes 2 - 5, they will be enabled automatically.
+4. If you plan to alternate an NRF24L01 device between RX Mode and TX Mode, rather than have dedicated primary transmitter and primary receiver setup - then the `set_rx_address` function should be used next, before setting the TX address (set_tx_address). This function sets the 5 byte address to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 4 MSB of data pipe 1 address and should be set with a 1 byte address. If you want to use a 5 byte buffer for data pipes 2 - 5, then the function will automatically set one byte (buffer[0]). This might be useful to visually keep track of the full addresses set to each data pipe when coding. The NRF24L01 has data pipes 0 and 1 enabled by default, but if you set an address for data pipes 2 - 5, they will be enabled automatically.
 
 ```C
 external_status_t set_rx_address(data_pipe_t data_pipe, const uint8_t *buffer);
@@ -145,7 +143,7 @@ set_rx_address(DATA_PIPE_3, (uint8_t []){0xC9, 0xC9, 0xC9, 0xC9, 0xC9});
 5. The `set_tx_address` function will set the destination data pipe address for a packet transmission, into the TX_ADDR register. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes (set_rx_address).  
 
 ```C
-external_status_t set_tx_address(const uint8_t *address);
+external_status_t set_tx_address(const uint8_t *buffer);
 
 // example use
 set_tx_address((uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7}); // matches DATA_PIPE_1 address in example above
