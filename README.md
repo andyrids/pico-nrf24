@@ -195,7 +195,7 @@ rx_packet(&message, sizeof(message))
 printf("Message received: %d\n", message);
 ```  
 
-3. Make sure a valid address is set for the data pipe the transmitting NRF24L01 will transmit to. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function, on this recipient device. Set the device to RX Mode (`set_rx_mode`) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (`examples/primary_receiver/`).
+3. Make sure a valid address is set for the data pipe the transmitting NRF24L01 will transmit to. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function, on this recipient device. Set the device to RX Mode (set_rx_mode) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (examples/primary_receiver/).
 
 ```C
 // example
