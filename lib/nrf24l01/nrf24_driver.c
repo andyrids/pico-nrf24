@@ -17,7 +17,15 @@
  */
 static pico_pins_t *pico_pins = NULL;
 static pico_spi_t *pico_spi = NULL;
-static device_status_t *nrf_status = NULL;
+
+static device_status_t nrf_status = { 
+  .mode = 'S', // 'S' standby, 'T' TX Mode, 'R' RX Mode
+  .address_width = FIVE_BYTES, // address width (bytes)
+  .payload_width = 0, // payload width (bytes)
+  .is_rx_addr_p0 = false, // has RX_ADDR_P0 address been cached?
+  .rx_addr_p0 = { 0x00, 0x00, 0x00, 0x00, 0x00 } // for cached RX_ADDR_P0 address
+};
+
 
 
 external_status_t init_pico(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin, uint32_t baudrate_hz) {
@@ -222,6 +230,19 @@ external_status_t set_auto_retransmission(retr_delay_t retr_delay, retr_count_t 
  */
 static internal_status_t set_address_width(address_width_t address_width) {
 
+  switch (address_width)
+  {
+    case AW_3_BYTES:
+      nrf_status.address_width = THREE_BYTES;
+    break;
+    case AW_4_BYTES:
+      nrf_status.address_width = FOUR_BYTES;
+    break;
+    case AW_5_BYTES:
+      nrf_status.address_width = FIVE_BYTES;
+    break;
+  }
+
   // holds OK (0) || REGISTER_W_FAIL (3)
   internal_status_t internal_status = w_register(SETUP_AW, &address_width, ONE_BYTE);
 
@@ -293,7 +314,7 @@ external_status_t set_payload_size(data_pipe_t data_pipe, uint8_t payload_width)
   if (internal_status == OK)
   {
     // cache payload_width value
-    nrf_status->payload_width = payload_width;
+    nrf_status.payload_width = payload_width;
 
     uint8_t rx_pw_registers[6] = { 
       RX_PW_P0, RX_PW_P1, RX_PW_P2, 
@@ -399,12 +420,12 @@ external_status_t set_rx_address(data_pipe_t data_pipe, const uint8_t *buffer) {
 
   if (data_pipe == DATA_PIPE_0)
   {
-    //nrf_status->is_rx_addr_p0 = true;
+    nrf_status.is_rx_addr_p0 = true;
 
-    //for (size_t i = 0; i < AW_5_BYTES; i++)
-   // { 
-    //  nrf_status->rx_addr_p0[i] = *(buffer++);
-   // }
+    for (size_t i = 0; i < nrf_status.address_width; i++)
+    { 
+      nrf_status.rx_addr_p0[i] = *(buffer++);
+    }
   }
 
   // will hold OK (0) || REGISTER_W_FAIL (3)
@@ -471,16 +492,10 @@ static void flush_rx_fifo(void) {
 external_status_t init_nrf24(uint8_t rf_channel) {
 
   // static struct holding NRF24L01 details
-  static device_status_t device_status = { 
-    .mode = 'S', // 'S' standby, 'T' TX Mode, 'R' RX Mode
-    .address_width = FIVE_BYTES, // address width (bytes)
-    .payload_width = 0, // payload width (bytes)
-    .is_rx_addr_p0 = false, // has RX_ADDR_P0 address been cached?
-    .rx_addr_p0 = { 0x00, 0x00, 0x00, 0x00, 0x00 } // for cached RX_ADDR_P0 address
-  };
+
 
   // pass address to static global pointer
-  nrf_status = &device_status;
+  // nrf_status = &device_status;
 
   spi_manager_init_spi(); // initialise SPI for function duration
 
@@ -502,7 +517,7 @@ external_status_t init_nrf24(uint8_t rf_channel) {
   sleep_ms(2); // Crystal oscillator start up delay
 
   /** NRF24L01+ now in Standby-I mode. PWR_UP bit in CONFIG is high & CE pin is low **/
-  device_status.mode = 'S';
+  nrf_status.mode = 'S';
 
   // enable auto-acknowledge on all data pipes
   internal_status = enable_auto_acknowledge(ENAA_ALL);
@@ -590,7 +605,7 @@ external_status_t tx_packet(const void *tx_packet, size_t size) {
 
   spi_manager_init_spi(); // initialise SPI for function duration
   
-  internal_status_t internal_status = (size <= nrf_status->payload_width) ? OK : PARAMETER_FAIL;
+  internal_status_t internal_status = (size <= nrf_status.payload_width) ? OK : PARAMETER_FAIL;
 
   // cast void *tx_packet to uint8_t pointer
   const uint8_t *tx_packet_ptr = (uint8_t *)tx_packet;
@@ -651,7 +666,7 @@ external_status_t rx_packet(void *rx_packet, size_t packet_size) {
 
   internal_status_t internal_status = OK;
 
-  internal_status = (packet_size <= nrf_status->payload_width) ? OK : PARAMETER_FAIL;
+  internal_status = (packet_size <= nrf_status.payload_width) ? OK : PARAMETER_FAIL;
 
   // cast void *tx_packet to uint8_t pointer
   uint8_t *rx_packet_ptr = (uint8_t *)rx_packet;
@@ -757,7 +772,7 @@ external_status_t set_tx_mode(void) {
     // NRF24L01+ enters TX Mode after 130us
     sleep_us(130);
 
-    nrf_status->mode = 'T'; // reflect TX Mode in nrf_status
+    nrf_status.mode = 'T'; // reflect TX Mode in nrf_status
   }
 
   internal_status = (internal_status == OK) ? OK : TX_MODE_FAIL;
@@ -795,10 +810,10 @@ external_status_t set_rx_mode(void) {
   }
 
   // restore the RX_ADDR_P0 address, if exists
-  //if (nrf_status->is_rx_addr_p0)
-  //{
-  //  w_register(RX_ADDR_P0, nrf_status->rx_addr_p0, FIVE_BYTES);
-  //}
+  if (nrf_status.is_rx_addr_p0)
+  {
+    w_register(RX_ADDR_P0, nrf_status.rx_addr_p0, FIVE_BYTES);
+  }
 
   internal_status = (internal_status == OK) ? OK : RX_MODE_FAIL;
 
@@ -808,7 +823,7 @@ external_status_t set_rx_mode(void) {
   // NRF24L01+ enters RX Mode after 130us
   sleep_us(130);
 
-  nrf_status->mode = 'R'; // reflect RX Mode in nrf_status
+  nrf_status.mode = 'R'; // reflect RX Mode in nrf_status
 
   external_status_t external_status = (internal_status == OK) ? PASS : FAIL;
 
