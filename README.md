@@ -86,7 +86,7 @@ typedef enum external_status_e
 
 ### Initial Setup 
 
-1. The `init_pico` function will initialise all GPIO pins (`pin_manager/pin_manager.c`) and set the correct SPI interface, baudrate and format for reading/writing to the NRF24L01 (`spi_manager/spi_manager.c`). This function will return FAIL (0), if any of the pin numbers are incorrect. For example, the function will check to make sure that you haven't used a CIPO pin on SPI 0 interface and a COPI pin on the SPI 1 interface (`spi_manager/spi_manager.c`).  
+1. The `init_pico` function will initialise all GPIO pins (pin_manager/pin_manager.c) and set the correct SPI interface, baudrate and format for reading/writing to the NRF24L01 (spi_manager/spi_manager.c). This function will return FAIL (0), if any of the pin numbers are incorrect. For example, the function will check to make sure that you haven't used a CIPO pin on SPI 0 interface and a COPI pin on the SPI 1 interface (spi_manager/spi_manager.c).  
 
 ```C
 external_status_t init_pico(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin, uint32_t baudrate_hz);
@@ -120,7 +120,7 @@ uint8_t payload = 100;
 set_payload_size(ALL_DATA_PIPES, sizeof(payload));
 ```  
 
-4. If you plan to use the NRF24L01 in both RX Mode and TX Mode, then the `set_rx_address` function should be used next, before setting the TX address (`set_tx_address`). This function sets the 5 byte address (buffer) to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 5 MSB of data pipe 1 address and should be set with a 1 byte address.  
+4. If you plan to use the NRF24L01 in both RX Mode and TX Mode, then the `set_rx_address` function should be used next, before setting the TX address (set_tx_address). This function sets the 5 byte address (buffer) to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 5 MSB of data pipe 1 address and should be set with a 1 byte address.  
 
 ```C
 external_status_t set_rx_address(data_pipe_t data_pipe, const uint8_t *buffer);
@@ -158,7 +158,7 @@ external_status_t set_rx_mode(void);
 external_status_t tx_packet(const void *tx_packet, size_t packet_size);
 ```  
 
-2. Make sure the correct TX address has been set (`set_tx_address`), the device is in TX Mode (`set_tx_mode`) and the appropriate payload size has been set (`set_payload_size`) during the initialization of the recipient NRF24L01. The `examples` folder contains an example of an NRF24L01 configured as a primary transmitter (`examples/primary_transmitter/`).  
+2. Make sure the correct TX address has been set (set_tx_address), the device is in TX Mode (set_tx_mode) and the appropriate payload size has been set (set_payload_size) during the initialization of the recipient NRF24L01. The `examples` folder contains an example of an NRF24L01 configured as a primary transmitter (examples/primary_transmitter/).  
 
 ```C
 set_tx_address((uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7}); // matches DATA_PIPE_1 address of recipient
@@ -195,7 +195,7 @@ rx_packet(&message, sizeof(message))
 printf("Message received: %d\n", message);
 ```  
 
-3. Make sure a valid address is set for the data pipe the transmitting NRF24L01 will transmit to. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function. Set the device to RX Mode (`set_rx_mode`) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (`examples/primary_receiver/`).
+3. Make sure a valid address is set for the data pipe the transmitting NRF24L01 will transmit to. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function, on this recipient device. Set the device to RX Mode (`set_rx_mode`) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (`examples/primary_receiver/`).
 
 ```C
 // example
