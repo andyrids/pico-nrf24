@@ -1,4 +1,4 @@
 target_sources(nrf24_driver
-    PRIVATE 
+    INTERFACE 
       pin_manager.c
 )
