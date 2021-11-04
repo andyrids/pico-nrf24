@@ -86,7 +86,7 @@ typedef enum external_status_e
 
 ### Initial Setup 
 
-1. The `init_pico` function will initialise all GPIO pins (pin_manager/pin_manager.c) and set the correct SPI interface, baudrate and format for reading/writing to the NRF24L01 (spi_manager/spi_manager.c). This function will return FAIL (0), if any of the pin numbers are incorrect. For example, the function will check to make sure that you haven't used a CIPO pin on SPI 0 interface and a COPI pin on the SPI 1 interface (spi_manager/spi_manager.c).  
+1. The `init_pico` function will initialise all GPIO pins (pin_manager/pin_manager.c) and set the correct SPI interface, baudrate and format for reading/writing to the NRF24L01 (spi_manager/spi_manager.c). This function will return FAIL (0), if any of the pin numbers are incorrect. For example, the function will check to make sure that you haven't used a CIPO pin on SPI 0 interface and a COPI pin on the SPI 1 interface (spi_manager/spi_manager.c). **NOTE:** The highest baudrate I can get working correctly is 7000000Hz. I'm not Not sure why.
 
 ```C
 external_status_t init_pico(
