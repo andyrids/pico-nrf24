@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "nrf24l01.h": "c",
+    "spi.h": "c",
+    "type_traits": "c",
+    "pin_manager.h": "c",
+    "nrf24_driver.h": "c",
+    "gpio.h": "c"
+  }
+}
