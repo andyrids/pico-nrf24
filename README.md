@@ -56,7 +56,7 @@ project_folder
 └ CMakeLists.txt <- main project CMakeLists.txt
 ```
 
-The 'nrf24_driver.h' file provides the main interface, which uses utility functions from other components (error_manager, pin_manager and spi_manager) to interact with the NRF24L01. `device_config.h` contains the full register map for the nRF24L01 and defines specific
+The `nrf24_driver.h` file provides the main interface, which uses utility functions from other components (error_manager, pin_manager and spi_manager) to interact with the NRF24L01. `device_config.h` contains the full register map for the nRF24L01 and defines specific
 register bit mnemonics that are useful for interfacing with the NRF24L01P over SPI.
 
 ## Configuration
@@ -132,7 +132,7 @@ set_rx_address(DATA_PIPE_2, (uint8_t []){0xC8});
 set_rx_address(DATA_PIPE_3, (uint8_t []){0xC9});
 ```  
 
-5. The `set_tx_address` function will set the address to which, a packet will be transmitted to. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes (through `set_rx_address`).  
+5. The `set_tx_address` function will set the address to which, a packet will be transmitted to. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes (set_rx_address).  
 
 ```C
 external_status_t set_tx_address(const uint8_t *address);
