@@ -71,13 +71,13 @@ The NRF24L01 will be setup with the following configuration, by default:
 - **Auto Retransmit Delay:** 500μS
 - **Auto Retransmit Count:** 10
 - **Dynamic payload:** disabled
-- **Acknowledgment payload:** disabled
+- **Acknowledgment payload:** disabled 
 
-All public functions in 'nrf24_driver.h' return an `external_status_t` value of either PASS (1) or FAIL (0), indicating the success of the operation.  
+All public functions in `nrf24_driver.h` return an `external_status_t` value of either PASS (1) or FAIL (0), indicating the success of the operation.  
 
 ```C
-// error_manager/error_manager.h
-typedef enum external_status_e 
+// available through nrf24_driver.h
+typedef enum external_status_e  
 { 
   FAIL, 
   PASS 
@@ -114,7 +114,7 @@ init_nrf24(76);
 3. The `set_payload_size` function sets the payload size in bytes for the specified data pipe (0 - 5) or for all data pipes, if the value 6 is used. The `data_pipe_t` values are available after including the `nrf24_driver.h` header file.  
 
 ```C
-// nrf24_driver.h
+// available through nrf24_driver.h
 typedef enum data_pipe_e
 { 
   DATA_PIPE_0, DATA_PIPE_1, DATA_PIPE_2, DATA_PIPE_3, DATA_PIPE_4, DATA_PIPE_5, ALL_DATA_PIPES
@@ -160,8 +160,8 @@ external_status_t set_tx_mode(void);
 external_status_t set_rx_mode(void);
 
 // example use
-set_tx_mode() // now in TX Mode
-set_rx_mode() // now in RX Mode
+set_tx_mode(); // now in TX Mode
+set_rx_mode(); // now in RX Mode
 ```  
 
 ### Transmitting A Packet
@@ -187,7 +187,7 @@ uint8_t response = tx_packet(&payload, sizeof(payload));
 
 ### Receiving A Packet
 
-1. The `is_rx_packet` function polls the STATUS register to ascertain in there is a packet in the RX FIFO. The function will return PASS (1) if there is a packet available to read, or FAIL (0) if not.  
+1. The `is_rx_packet` function polls the STATUS register to ascertain if there is a packet in the RX FIFO. The function will return PASS (1) if there is a packet available to read, or FAIL (0) if not.  
 
 ```C
 external_status_t is_rx_packet(void);
@@ -242,7 +242,8 @@ while (1) {
 1. The `set_auto_retransmission` function will enable you to set the automatic retransmission delay (ARD) and automatic retransmission count (ARC) settings. Enhanced ShockBurst™ automatically retransmits the original data packet after a programmable delay (the ARD), a max number of times (the ARC), if an auto-acknowledgement is not received from the intended recipient of the packet.  
 
 ```C
-typedef enum retr_delay_e // available through nrf24_driver.h
+// available through nrf24_driver.h
+typedef enum retr_delay_e
 {
   // Automatic retransmission delay of 250μS
   ARD_250US = (0x00 << SETUP_RETR_ARD), 
@@ -270,18 +271,24 @@ typedef enum retr_count_e // available through nrf24_driver.h
 external_status_t set_auto_retransmission(retr_delay_t retr_delay, retr_count_t retr_count);
 
 // example use
-set_auto_retransmission(ARD_500US, ARC_10RT); // ARD of 500μS & ARC of 10
-set_auto_retransmission(ARD_750US, ARC_13RT); // ARD of 750μS & ARC of 13
+set_auto_retransmission(ARD_500US, ARC_10RT); // ARD 500μS & ARC 10
+set_auto_retransmission(ARD_750US, ARC_13RT); // ARD 750μS & ARC 13
 ```  
 
 2. The `set_rf_data_rate` function sets the air data rate for the NRF24L01, to 1 Mbps, 2 Mbps or 250 kbps.  
 
 ```C
-typedef enum rf_data_rate_e // available through nrf24_driver.h
+// available through nrf24_driver.h
+typedef enum rf_data_rate_e 
 {
-  RF_DR_1MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 1 Mbps
-  RF_DR_2MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x01 << RF_SETUP_RF_DR_HIGH)), // 2 Mbps
-  RF_DR_250KBPS = ((0x01 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 250 kbps
+   // 1 Mbps
+  RF_DR_1MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)),
+
+   // 2 Mbps
+  RF_DR_2MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x01 << RF_SETUP_RF_DR_HIGH)),
+
+  // 250 kbps
+  RF_DR_250KBPS = ((0x01 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)),
 } rf_data_rate_t; 
 
 external_status_t set_rf_data_rate(rf_data_rate_t data_rate);
@@ -294,12 +301,20 @@ set_rf_data_rate(RF_DR_250KBPS); // 250 kbps
 3. The `set_rf_power` function sets the TX Mode power level. If your devices are close together, such as when testing, a lower power level is best. The default setting is `RF_PWR_0DBM`.  
 
 ```C
-typedef enum rf_power_e // available through nrf24_driver.h
+// available through nrf24_driver.h
+typedef enum rf_power_e
 {
-  RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR), // -18dBm Tx output power
-  RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR), // -12dBm Tx output power
-  RF_PWR_NEG_6DBM  = (0x02 << RF_SETUP_RF_PWR), // -6dBm Tx output power
-  RF_PWR_0DBM  = (0x03 << RF_SETUP_RF_PWR) // 0dBm Tx output power
+  // -18dBm Tx output power
+  RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR), 
+
+  // -12dBm Tx output power
+  RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR), 
+
+  // -6dBm Tx output power
+  RF_PWR_NEG_6DBM  = (0x02 << RF_SETUP_RF_PWR), 
+
+  // 0dBm Tx output power
+  RF_PWR_0DBM  = (0x03 << RF_SETUP_RF_PWR) 
 } rf_power_t;  
 
 external_status_t set_rf_power(rf_power_t rf_pwr);  
