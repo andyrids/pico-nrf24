@@ -13,7 +13,6 @@ const uint8_t IRQ_PIN = 7;
 const uint32_t BAUDRATE_HZ = 6000000;
 const uint8_t RF_CHANNEL = 80;
 
-
 /**
  * A setup function to carry out preliminary steps before
  * Pico and NRF24L01 are ready to use.
@@ -102,11 +101,12 @@ external_status_t setup(void) {
   // indicate final state reached.
   printf("Reached setup state %d of 6, before EXIT.\n\n", *setup_states);
 
+  // if any state transition failed, status == FAIL
   return status;
 }
 
-
 int main(void) {
+  // initialize all present standard stdio types
   stdio_init_all();
 
   // descriptive enum for all static & transitional states
@@ -177,7 +177,7 @@ int main(void) {
 
       case READ_PACKET:
         next_state = rx_packet(&packet, ONE_BYTE) ? PRINT_PACKET : ERROR;
-        // &(initial_state[WAIT_FOR_PACKET]) || &(initial_state[ERROR])
+        // &(initial_state[PRINT_PACKET]) || &(initial_state[ERROR])
         prx_states = &(initial_state[next_state]); // prx_states = initial_state + next_state
       break;
 

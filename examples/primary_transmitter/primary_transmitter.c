@@ -83,6 +83,7 @@ external_status_t setup(void) {
 }
 
 int main(void) {
+  // initialize all present standard stdio types
   stdio_init_all();
 
   // descriptive enum for all static & transitional states
@@ -94,7 +95,7 @@ int main(void) {
    */
   uint8_t *ptx_states = (uint8_t []){ TX_PACKET, AUTO_ACK_RECEIVED, PAUSE, ERROR };
 
-   // used to set/reset ptx_states position
+  // used to set/reset ptx_states position
   uint8_t *initial_state = ptx_states;
 
   sleep_ms(10000); // gives time to open/restart PuTTy
@@ -130,8 +131,7 @@ int main(void) {
   printf("RX_ADDR_P0: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
   debug_address_bytes(TX_ADDR, buffer, FIVE_BYTES);
-  printf("TX_ADDR: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-
+  printf("TX_ADDR: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
   sleep_ms(1000);
 
@@ -151,7 +151,7 @@ int main(void) {
     switch (*ptx_states) // initial value is TX_PACKET
     {
       case TX_PACKET:
-          time_sent = to_us_since_boot(get_absolute_time()); // time sent in
+          time_sent = to_us_since_boot(get_absolute_time()); // time sent
           next_state = tx_packet(&packet, sizeof(packet)) ? AUTO_ACK_RECEIVED : ERROR;
           time_response = to_us_since_boot(get_absolute_time()); // response time
 
@@ -162,7 +162,7 @@ int main(void) {
       case AUTO_ACK_RECEIVED:
         printf("Transmission success:- Response time: %lluμS | Payload: %d\n", time_response - time_sent, packet);
 
-        next_state = PAUSE; // PAUSE value (2) is also index of PAUSE in array of states
+        next_state = PAUSE;
 
         // &(initial_state[PAUSE])
         ptx_states = &(initial_state[next_state]); // ptx_states = initial_state + next_state
@@ -174,20 +174,19 @@ int main(void) {
       break;
 
       case PAUSE:
-        // time difference in μs between current time and pause_timer
+        // time difference in μs between current time and pause_end
         if (!absolute_time_diff_us(get_absolute_time(), pause_end))
         {
           // transitioning back to TX_PACKET
-          next_state = TX_PACKET; // TX_PACKET value (0) is also index of TX_PACKET in array of states
+          next_state = TX_PACKET;
 
           // &(initial_state[TX_PACKET])
           ptx_states = &(initial_state[next_state]); // ptx_states = initial_state + next_state
         }
-
       break;
 
       default:
-        next_state = ERROR; // ERROR value (3) is also index of ERROR in array of states
+        next_state = ERROR;
 
         // &(initial_state[ERROR])
         ptx_states = &(initial_state[next_state]); // ptx_states = initial_state + next_state

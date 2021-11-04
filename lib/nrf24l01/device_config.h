@@ -1,15 +1,20 @@
 /**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
  * @file device_config.h
  * 
- * @author Andrew Ridyard
- * 
- * @brief Nordic nRF24L01P register addresses and bit mnemonics
- * 
- * @note The nRF24L01+ is a single chip 2.4GHz transceiver with an embedded baseband protocol
- * engine (Enhanced ShockBurst™), suitable for ultra low power wireless applications.
- * 
- * @details Header file contains the full register map for the nRF24L01P and defines specific
- * register bit mnemonics that are useful for interfacing with the NRF24L01P over SPI.
+ * @brief enumerations, type definitions for the full nRF24L01 
+ * register map and specific register bit mnemonics that are 
+ * useful for interfacing with the NRF24L01P over SPI.
  */
 
 #ifndef DEVICE_CONFIG_H
@@ -18,32 +23,60 @@
 // SPI commands [8.3.1 in Datasheet]
 typedef enum register_commands_e
 {
-  R_REGISTER = 0x00, // Read register [000] + [5 bit register address]
-  W_REGISTER = 0x20, // Write register [001] + [5 bit register address]
-  NOP = 0xFF // No Operation
+  // Read register [000] + [5 bit register address]
+  R_REGISTER = 0x00, 
+
+  // Write register [001] + [5 bit register address]
+  W_REGISTER = 0x20, 
+
+  // No Operation
+  NOP = 0xFF 
 } register_commands_t;
+
 
 // SPI commands [8.3.1 in Datasheet]
 typedef enum payload_commands_e
 {
-  R_RX_PL_WID = 0x60, // Read RX payload width for top payload in RX FIFO
-  R_RX_PAYLOAD = 0x61, // Read Rx payload (0b01100001)
-  W_TX_PAYLOAD = 0xA0, // Write Tx payload (0b10100000)
-  W_ACK_PAYLOAD_P0 = 0xA8, // Write Payload for Tx with ACK packet on pipe 0
-  W_ACK_PAYLOAD_P1 = 0xA9, // Write Payload for Tx with ACK packet on pipe 1
-  W_ACK_PAYLOAD_P2 = 0xAA, // Write Payload for Tx with ACK packet on pipe 2
-  W_ACK_PAYLOAD_P3 = 0xAB, // Write Payload for Tx with ACK packet on pipe 3
-  W_ACK_PAYLOAD_P4 = 0xAC, // Write Payload for Tx with ACK packet on pipe 4
-  W_ACK_PAYLOAD_P5 = 0xAD, // Write Payload for Tx with ACK packet on pipe 5
-  W_TX_PAYLOAD_NOACK = 0xB0, // Disables AUTOACK on this specific packet
-  REUSE_TX_PL = 0xE3, // Reuse last transmitted payload
+  // Read RX payload width for top payload in RX FIFO
+  R_RX_PL_WID = 0x60, 
+
+  // Read Rx payload (0b01100001)
+  R_RX_PAYLOAD = 0x61, 
+
+  // Write Tx payload (0b10100000)
+  W_TX_PAYLOAD = 0xA0, 
+
+  // Write Payload for Tx with ACK packet on pipe 0 
+  W_ACK_PAYLOAD_P0 = 0xA8,
+
+  // Write Payload for Tx with ACK packet on pipe 1
+  W_ACK_PAYLOAD_P1 = 0xA9,
+
+  // Write Payload for Tx with ACK packet on pipe 2
+  W_ACK_PAYLOAD_P2 = 0xAA,
+
+  // Write Payload for Tx with ACK packet on pipe 3 
+  W_ACK_PAYLOAD_P3 = 0xAB,
+
+  // Write Payload for Tx with ACK packet on pipe 4
+  W_ACK_PAYLOAD_P4 = 0xAC,
+
+  // Write Payload for Tx with ACK packet on pipe 5
+  W_ACK_PAYLOAD_P5 = 0xAD,
+
+  // Disables AUTOACK on this specific packet
+  W_TX_PAYLOAD_NOACK = 0xB0, 
+
+  // Reuse last transmitted payload
+  REUSE_TX_PL = 0xE3, 
 } payload_commands_t;
+
 
 // SPI commands [8.3.1 in Datasheet]
 typedef enum fifo_commands_e
 {
-  FLUSH_TX = 0xE1, // Flush Tx FIFO (Tx mode)
-  FLUSH_RX = 0xE2 // Flush Rx FIFO (Rx mode)
+  FLUSH_TX = 0xE1, // Flush TX FIFO (TX Mode)
+  FLUSH_RX = 0xE2 // Flush RX FIFO (RX Mode)
 } fifo_commands_t;
 
 
@@ -67,26 +100,28 @@ typedef enum register_map_e
   RX_ADDR_P4 = 0x0E, // Rx address data pipe 4
   RX_ADDR_P5 = 0x0F, // Rx address data pipe 5
   TX_ADDR = 0x10, // Tx address (for PTX)
-  RX_PW_P0 = 0x11, // Bytes in Rx payload in data pipe 0
-  RX_PW_P1 = 0x12, // Bytes in Rx payload in data pipe 1
-  RX_PW_P2 = 0x13, // Bytes in Rx payload in data pipe 2
-  RX_PW_P3 = 0x14, // Bytes in Rx payload in data pipe 3
-  RX_PW_P4 = 0x15, // Bytes in Rx payload in data pipe 4
-  RX_PW_P5 = 0x16, // Bytes in Rx payload in data pipe 5
+  RX_PW_P0 = 0x11, // Rx payload bytes in data pipe 0
+  RX_PW_P1 = 0x12, // Rx payload bytes in data pipe 1
+  RX_PW_P2 = 0x13, // Rx payload bytes in data pipe 2
+  RX_PW_P3 = 0x14, // Rx payload bytes in data pipe 3
+  RX_PW_P4 = 0x15, // Rx payload bytes in data pipe 4
+  RX_PW_P5 = 0x16, // Rx payload bytes in data pipe 5
   FIFO_STATUS = 0x17, // FIFO Status register
   DYNPD = 0x1C // Enable dynamic payload length
 } register_map_t;
+
 
 // Bitwise masks [REGISTER][MNEMONIC/DESCRIPTION]['MASK']
 typedef enum bitwise_masks_e
 {
   FIFO_STATUS_FIFO_MASK = 0x01, // 0b00000001
   RF_SETUP_RF_PWR_MASK = 0x06, // 0b00000110
-  STATUS_PRX_P_NO_MASK = 0x07, // 0b00000111
+  STATUS_RX_P_NO_MASK = 0x07, // 0b00000111
   REGISTER_MASK = 0x1F, // 0b00011111
   RF_SETUP_RF_DR_MASK = 0x28, // 0b00101000
   STATUS_INTERRUPT_MASK = 0x70 // 0b01110000
 } bitwise_masks_t;  
+
 
 /**
  * CONFIG register (0x00):
@@ -170,6 +205,7 @@ typedef enum setup_aw_bit_e
   SETUP_AW_RESERVED_6 // Bit 7
 } setup_aw_bit_t;
 
+
 /**
  * RF_CH register (0x05):
  * 
@@ -186,6 +222,7 @@ typedef enum rf_ch_bit_e
   RF_CH_RF_CH, // Bit 0:6
   RF_CH_RESERVED = 7 // Bit 7
 } rf_ch_bit_t;
+
 
 /**
  * SETUP_RETR register (0x04):
@@ -204,6 +241,7 @@ typedef enum setup_retr_bit_e
   SETUP_RETR_ARC, // Bit 0
   SETUP_RETR_ARD = 4, // Bit 4
 } setup_retr_bit_t;
+
 
 /**
  * RF_SETUP register (0x06):
@@ -230,6 +268,7 @@ typedef enum rf_setup_bit_e
   RF_SETUP_RESERVED, // Bit 6
   RF_SETUP_CONT_WAVE, // Bit 7
 } rf_setup_bit_t;
+
 
 /**
  * STATUS register (0x07):
@@ -258,6 +297,7 @@ typedef enum status_bit_e
   STATUS_RESERVED_0, // Bit 7 - Only '0' allowed
 } status_bit_t;
 
+
 // FIFO_STATUS register bit mnemonics
 typedef enum fifo_status_bit_e
 {
@@ -270,6 +310,8 @@ typedef enum fifo_status_bit_e
   FIFO_STATUS_RESERVED_1
 } fifo_status_bit_t;
 
+
+// EN_RXADDR register bit mnemonics
 typedef enum en_rxaddr_bit_e
 {
   EN_RXADDR_ERX_P0,
@@ -279,6 +321,7 @@ typedef enum en_rxaddr_bit_e
   EN_RXADDR_ERX_P4,
   EN_RXADDR_ERX_P5,
 } en_rxaddr_bit_t;
+
 
 typedef enum register_bit_e
 {
@@ -292,6 +335,8 @@ typedef enum register_bit_e
   BIT_7,
 } register_bit_t;
 
+
+// EN_AA register enable AA settings
 typedef enum en_auto_ack_e
 {
   ENAA_NONE = 0x00,
@@ -304,6 +349,8 @@ typedef enum en_auto_ack_e
   ENAA_ALL = 0x3F
 } en_auto_ack_t;
 
+
+// EN_RXADDR enable RX address settings
 typedef enum en_rx_addr_e
 {
   ERX_P0 = (0x01 << EN_RXADDR_ERX_P0),
@@ -315,6 +362,7 @@ typedef enum en_rx_addr_e
   ERX_ALL = 0x3F
 } en_rx_addr_t;
 
+
 // SETUP_AW register address width (AW) settings
 typedef enum address_width_e
 {
@@ -323,14 +371,23 @@ typedef enum address_width_e
   AW_5_BYTES = (0x03 << SETUP_AW_AW) // 5 Byte address width
 } address_width_t;
 
+
 // SETUP_RETR register Automatic Retransmission Delay (ARD) settings
 typedef enum retr_delay_e
 {
-  ARD_250US = (0x00 << SETUP_RETR_ARD), // Automatic retransmission delay of 250μS
-  ARD_500US = (0x01 << SETUP_RETR_ARD), // Automatic retransmission delay of 500μS
-  ARD_750US = (0x02 << SETUP_RETR_ARD), // Automatic retransmission delay of 750μS
-  ARD_1000US = (0x03 << SETUP_RETR_ARD) // Automatic retransmission delay of 1000μS
+  // Automatic retransmission delay of 250μS
+  ARD_250US = (0x00 << SETUP_RETR_ARD), 
+
+  // Automatic retransmission delay of 500μS
+  ARD_500US = (0x01 << SETUP_RETR_ARD), 
+
+  // Automatic retransmission delay of 750μS
+  ARD_750US = (0x02 << SETUP_RETR_ARD), 
+
+  // Automatic retransmission delay of 1000μS
+  ARD_1000US = (0x03 << SETUP_RETR_ARD) 
 } retr_delay_t;
+
 
 // SETUP_RETR register Automatic Retransmission Count (ARC) settings
 typedef enum retr_count_e 
@@ -353,6 +410,7 @@ typedef enum retr_count_e
   ARC_15RT = (0x0F << SETUP_RETR_ARC) // ARC of 15
 } retr_count_t;
 
+
 // RF_SETUP register Data Rate (DR) settings
 typedef enum rf_data_rate_e
 {
@@ -361,14 +419,21 @@ typedef enum rf_data_rate_e
   RF_DR_250KBPS = ((0x01 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 250 kbps
 } rf_data_rate_t;
 
+
 // RF_SETUP register RF Power (RF_PWR) settings
 typedef enum rf_power_e
 {
-  RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR), // -18dBm Tx output power
-  RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR), // -12dBm Tx output power
-  RF_PWR_NEG_6DBM  = (0x02 << RF_SETUP_RF_PWR), // -6dBm Tx output power
-  RF_PWR_0DBM  = (0x03 << RF_SETUP_RF_PWR) // 0dBm Tx output power
-} rf_power_t;
+  // -18dBm Tx output power
+  RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR),
 
+  // -12dBm Tx output power
+  RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR),
+
+  // -6dBm Tx output power
+  RF_PWR_NEG_6DBM  = (0x02 << RF_SETUP_RF_PWR),
+
+  // 0dBm Tx output power
+  RF_PWR_0DBM  = (0x03 << RF_SETUP_RF_PWR)
+} rf_power_t;
 
 #endif // DEVICE_CONFIG_h

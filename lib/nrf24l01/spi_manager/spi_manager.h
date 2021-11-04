@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
+ * @file spi_manager.h
+ * 
+ * @brief enumerations, type definitions and function declarations for
+ * communicating with the NRF24L01 over SPI.
+ */
+
 #ifndef SPI_MANAGER_H
 #define SPI_MANAGER_H   
 
@@ -27,50 +45,74 @@ typedef enum spi_pins_e { CIPO, COPI, SCK, ALL_PINS } spi_pins_t;
  * are offset by 4, from the lowest valid GPIO pin to the highest GPIO pin.
  * 
  * i.e. CIPO_GP0, CIPO_GP4, CIPO_GP8, CIPO_GP12, CIPO_GP16, CIPO_GP20 & CIPO_GP24
+ * 
+ * by starting at the lowest available pin value for a specific SPI pin and incrementing
+ * by 4, stoping at the highest valid pin value, it is possible to ascertain if the pin
+ * is even a valid SPI pin of the specified type, before checking which SPI instance it 
+ * is associated with.
  */
 typedef enum spi_min_range_e { CIPO_MIN = 0, CSN_MIN, SCK_MIN, COPI_MIN } spi_min_range_t; // lowest available SPI GPIO numbers
 typedef enum spi_max_range_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX, CSN_MAX } spi_max_range_t; // highest available SPI GPIO numbers
 
+// struct to store SPI instance and baudrate
 typedef struct pico_spi_s
 {
   spi_inst_t *spi_instance; // SPI instance
   uint32_t spi_baudrate; // SPI baudrate in Hz
 } pico_spi_t;
 
+
 /**
- * Checks the CIPO, COPI and SCK pins are correct and returns
+ * Checks the CIPO, COPI and SCK pins and if correct, returns
  * SPI_0, SPI_1 or INSTANCE_ERROR, indicating if all pins are 
- * part of SPI 0, SPI 1 interfaces or not (INSTANCE_ERROR) .
+ * part of SPI 0, SPI 1 interfaces or not (INSTANCE_ERROR).
  * 
  * @param pin CIPO GPIO pin
  * @param pin COPI GPIO pin
  * @param pin SCK GPIO pin
- * @return spi_instance_t SPI_0, SPI_1 or INSTANCE_ERROR
+ * 
+ * @return SPI_0 (0), SPI_1 (2), INSTANCE_ERROR (3)
  */
 spi_instance_t spi_manager_check_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t sck_pin);
 
 
 /**
- * C...
+ * Stores the correct SPI instance and baudrate, ready for the 
+ * spi_manager_init_spi and spi_manager_deinit_spi to use. Also
+ * passes the address to the stored values in a pico_spi_t variable 
+ * to the main driver.
  * 
- * @param spi_instance spi_instance_t (SPI_0 or SPI_1)
+ * @param spi_instance SPI_0 (0) or SPI_1 (1)
  * @param baudrate_hz baudrate in hz
+ * 
  * @return pointer to pico_spi_t struct variable
  */
 pico_spi_t* spi_manager_set_spi(spi_instance_t spi_instance, uint32_t baudrate_hz);
 
 
+/**
+ * Initialise the SPI interface for read/write operations
+ * to the NRF24L01 device over SPI.
+ */
 void spi_manager_init_spi(void);
+
+
+/**
+ * Deinitialise the SPI interface for read/write operations
+ * to the NRF24L01 device over SPI.
+ */
 void spi_manager_deinit_spi(void);
 
 
 /**
- * C...
+ * Performs a simultaneous red/write to the NRF24L01 over
+ * SPI.
  * 
- * @param tx_buffer 
- * @param rx_buffer
- * @param num_bytes
- * @return internal_status_t
+ * @param tx_buffer write buffer
+ * @param rx_buffer read buffer
+ * @param num_bytes bytes in buffers
+ * 
+ * @return OK (0), SPI_FAIL (7)
  */
 internal_status_t spi_manager_transfer(const uint8_t *tx_buffer, uint8_t *rx_buffer, size_t num_bytes);
 

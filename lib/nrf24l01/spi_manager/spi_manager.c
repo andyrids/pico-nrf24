@@ -1,18 +1,38 @@
+/**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
+ * @file spi_manager.c
+ * 
+ * @brief function definitions for communicating with the NRF24L01 
+ * over SPI.
+ */
+
 #include "spi_manager.h"
 #include "hardware/spi.h"
 
+// stores SPI instance and baudrate
 static pico_spi_t pico_spi = { .spi_instance = NULL, .spi_baudrate = 0 };
 
-// static pico_spi_t *pico_spi_ptr = NULL;
 
 /**
  * Checks the CIPO pin is correct and returns
  * SPI_0, SPI_1 or SPI_ERROR.
  * 
  * @param pin CIPO GPIO pin
- * @return spi_instance_t SPI_0, SPI_1 or SPI_ERROR
+ * 
+ * @return SPI_0 (0), SPI_1 (1), SPI_ERROR (2)
  */
 static spi_instance_t check_cipo_pin(uint8_t pin) {
+
   // can be SPI_0 (0), SPI_1 (1) or SPI_ERROR (2)
   uint8_t spi_instance = INSTANCE_ERROR;
 
@@ -20,13 +40,12 @@ static spi_instance_t check_cipo_pin(uint8_t pin) {
    * Valid CIPO pin: CIPO_GP0 CIPO_GP4 CIPO_GP8 CIPO_GP12 CIPO_GP16 CIPO_GP20 CIPO_GP24 CIPO_GP28
    * SPI instance:    SPI_0    SPI_0    SPI_1     SPI_1     SPI_0     SPI_0     SPI_1     SPI_1
    */
-
   spi_instance_t instance_pattern[8] = { SPI_0, SPI_0, SPI_1, SPI_1, SPI_0, SPI_0, SPI_1, SPI_1 };
 
   for (uint8_t valid_pin = CIPO_MIN; valid_pin <= CIPO_MAX; valid_pin += 4)
   {
     if (pin == valid_pin)
-    { // valid_pin / 4 = corresponding index in instance_pattern[7]
+    { // valid_pin / 4 = corresponding index in instance_pattern[8]
       spi_instance = instance_pattern[valid_pin / 4];
       break; // break, if pin is valid
     }
@@ -36,15 +55,16 @@ static spi_instance_t check_cipo_pin(uint8_t pin) {
 }
 
 
-
 /**
  * Checks the COPI pin is correct and returns
  * SPI_0, SPI_1 or SPI_ERROR.
  * 
  * @param pin COPI GPIO pin
- * @return spi_instance_t SPI_0, SPI_1 or SPI_ERROR
+ * 
+ * @return SPI_0 (0), SPI_1 (1), SPI_ERROR (2)
  */
 static spi_instance_t check_copi_pin(uint8_t pin) {
+
   // can be SPI_0 (0), SPI_1 (1) or SPI_ERROR (2)
   uint8_t spi_instance = INSTANCE_ERROR;
 
@@ -52,7 +72,6 @@ static spi_instance_t check_copi_pin(uint8_t pin) {
    * Valid COPI pin: COPI_GP3 COPI_GP7 COPI_GP11 COPI_GP15 COPI_GP19 COPI_GP23 COPI_GP27
    * SPI instance:    SPI_0    SPI_0    SPI_1     SPI_1     SPI_0     SPI_0     SPI_1
    */
-
   spi_instance_t instance_pattern[7] = { SPI_0, SPI_0, SPI_1, SPI_1, SPI_0, SPI_0, SPI_1 };
 
   for (uint8_t valid_pin = COPI_MIN; valid_pin <= COPI_MAX; valid_pin += 4)
@@ -73,9 +92,11 @@ static spi_instance_t check_copi_pin(uint8_t pin) {
  * SPI_0, SPI_1 or SPI_ERROR.
  * 
  * @param pin SCK GPIO pin
- * @return spi_instance_t SPI_0, SPI_1 or SPI_ERROR
+ * 
+ * @return SPI_0 (0), SPI_1 (1), SPI_ERROR (2)
  */
 static spi_instance_t check_sck_pin(uint8_t pin) {
+
   // can be SPI_0 (0), SPI_1 (1) or SPI_ERROR (2)
   uint8_t spi_instance = INSTANCE_ERROR;
 
@@ -83,7 +104,6 @@ static spi_instance_t check_sck_pin(uint8_t pin) {
    * Valid SCK pin: SCK_GP2 SCK_GP6 SCK_GP10 SCK_GP14 SCK_GP18 SCK_GP22 SCK_GP26
    * SPI instance:   SPI_0   SPI_0   SPI_1    SPI_1    SPI_0    SPI_0    SPI_1
    */
-
   spi_instance_t instance_pattern[7] = { SPI_0, SPI_0, SPI_1, SPI_1, SPI_0, SPI_0, SPI_1 };
 
   for (uint8_t valid_pin = SCK_MIN; valid_pin <= SCK_MAX; valid_pin += 4)
@@ -98,7 +118,10 @@ static spi_instance_t check_sck_pin(uint8_t pin) {
   return spi_instance;
 }
 
+
+// see spi_manager.h
 spi_instance_t spi_manager_check_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t sck_pin) {
+
   // determined SPI instance for CIPO, COPI, CSN & SCK pins
   spi_instance_t spi_instances[3];
 
@@ -133,6 +156,8 @@ spi_instance_t spi_manager_check_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_
   return spi_instance;
 }
 
+
+// see spi_manager.h
 void spi_manager_init_spi(void) {
 
   // initialise SPI instance at the specified baudrate (Hz)
@@ -147,6 +172,8 @@ void spi_manager_init_spi(void) {
   return;
 } 
 
+
+// see spi_manager.h
 void spi_manager_deinit_spi(void) {
 
   // deinitialise SPI instance
@@ -156,29 +183,30 @@ void spi_manager_deinit_spi(void) {
 } 
 
 
+// see spi_manager.h
 internal_status_t spi_manager_transfer(const uint8_t *tx_buffer, uint8_t *rx_buffer, size_t num_bytes) {
 
   sleep_us(2);
   uint8_t bytes_written = spi_write_read_blocking(pico_spi.spi_instance, tx_buffer, rx_buffer, num_bytes);
   sleep_us(2);
 
+  // check that bytes written/read match bytes in tx_buffer & rx_buffer
   internal_status_t internal_status = (bytes_written == num_bytes) ? OK : SPI_FAIL;
 
   return internal_status;
 }
 
 
+// see spi_manager.h
 pico_spi_t* spi_manager_set_spi(spi_instance_t spi_instance, uint32_t baudrate_hz) {
 
+  // store correct SPI instance
   pico_spi.spi_instance = (spi_instance == SPI_0) ? spi0 : spi1;
   
+  // store requested baudrate
   pico_spi.spi_baudrate = baudrate_hz;
 
-  // initialise the SPI
-  
-  // also called within the pico-sdk spi_init() function, with the same arguments
-  spi_set_format(pico_spi.spi_instance, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-
+  // address to stored instance and baudrate
   return &pico_spi;
 }
 

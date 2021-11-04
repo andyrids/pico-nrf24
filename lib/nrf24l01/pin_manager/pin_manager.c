@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
+ * @file pin_manager.c
+ * 
+ * @brief utility functions to initialise GPIO pins, set their function 
+ * and drive pins HIGH or LOW.
+ */
+
 #include "pin_manager.h"
 #include "hardware/gpio.h"
 
@@ -46,6 +64,7 @@ void ce_put_low(void) {
 
 pico_pins_t* pin_manager_init_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin) {
 
+  // set pico_pins GPIO values
   pico_pins = (pico_pins_t){ 
     .cipo_pin = cipo_pin, 
     .copi_pin = copi_pin, 
@@ -55,19 +74,18 @@ pico_pins_t* pin_manager_init_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t c
   };
 
   // Set GPIO function as SPI for SCK, COPI & CIPO
-  gpio_set_function(pico_pins.sck_pin, GPIO_FUNC_SPI); // SCK_GP2
-  gpio_set_function(pico_pins.copi_pin, GPIO_FUNC_SPI); // COPI_GP3
-  gpio_set_function(pico_pins.cipo_pin, GPIO_FUNC_SPI); // CIPO_GP4
+  gpio_set_function(pico_pins.sck_pin, GPIO_FUNC_SPI);
+  gpio_set_function(pico_pins.copi_pin, GPIO_FUNC_SPI);
+  gpio_set_function(pico_pins.cipo_pin, GPIO_FUNC_SPI);
 
-  // Initialise CE, CSN & IRQ GPIO
-  gpio_init(pico_pins.ce_pin); // 6
-  gpio_init(pico_pins.csn_pin); // CSN_GP5
-  // gpio_init(pins.irq_pin); // 7
+  // Initialise CE & CSN
+  gpio_init(pico_pins.ce_pin);
+  gpio_init(pico_pins.csn_pin);
 
-  // Set direction for CE, CSN & IRQ GPIO
+
+  // Set direction for CE & CSN
   gpio_set_dir(pico_pins.ce_pin, GPIO_OUT);
   gpio_set_dir(pico_pins.csn_pin, GPIO_OUT);
-  // gpio_set_dir(ins.irq_pin, GPIO_IN);
   
   return &pico_pins;
 };
