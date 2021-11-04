@@ -41,6 +41,7 @@ This table shows the available pins for connecting the NRF24L01 SPI pins to each
 
 ## Structure
 
+```
 project_folder
 ├ examples **<- examples using driver**
 ├ lib
@@ -55,6 +56,7 @@ project_folder
 |   └ nrf24_driver.c     
 ├ test
 └ CMakeLists.txt **<- main project CMakeLists.txt**
+```
 
 The 'nrf24_driver.h' file provides the main interface, which uses utility functions from other components (error_manager, pin_manager and spi_manager) to interact with the NRF24L01. `device_config.h` contains the full register map for the nRF24L01 and defines specific
 register bit mnemonics that are useful for interfacing with the NRF24L01P over SPI.
