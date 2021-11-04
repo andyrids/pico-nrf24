@@ -6,7 +6,7 @@ A work in progress for an NRF24L01 driver for the Raspberry Pi Pico.
 
 - [ ] Update documentation
 - [ ] Further testing & debugging
-- [ ] Fix caching of RX_ADDR_P0 address issue
+- [X] Fix caching of RX_ADDR_P0 address issue
 - [ ] Implement dynamic payloads
 - [ ] Implement auto-acknowledgement with payloads
 - [ ] Design optional IRQ pin with ISR implementation
@@ -89,13 +89,20 @@ typedef enum external_status_e
 1. The `init_pico` function will initialise all GPIO pins (pin_manager/pin_manager.c) and set the correct SPI interface, baudrate and format for reading/writing to the NRF24L01 (spi_manager/spi_manager.c). This function will return FAIL (0), if any of the pin numbers are incorrect. For example, the function will check to make sure that you haven't used a CIPO pin on SPI 0 interface and a COPI pin on the SPI 1 interface (spi_manager/spi_manager.c).  
 
 ```C
-external_status_t init_pico(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin, uint32_t baudrate_hz);
+external_status_t init_pico(
+  uint8_t cipo_pin, 
+  uint8_t copi_pin, 
+  uint8_t csn_pin, 
+  uint8_t sck_pin, 
+  uint8_t ce_pin, 
+  uint32_t baudrate_hz
+);
 
 // example use
 init_pico(0, 3, 4, 2, 5, 6000000)
 ```  
 
-2. The `init_nrf24` function will initialise the NRF24L01, using the default configuration listed above and will set the RF channel. RF channel values must match among your different NRF24L01 devices.  
+2. The `init_nrf24` function will initialise the NRF24L01, using the default configuration listed above and will also set the RF channel. RF channel values must match among your different NRF24L01 devices.  
 
 ```C
 external_status_t init_nrf24(uint8_t rf_channel);
@@ -120,7 +127,7 @@ uint8_t payload = 100;
 set_payload_size(ALL_DATA_PIPES, sizeof(payload));
 ```  
 
-4. If you plan to use the NRF24L01 in both RX Mode and TX Mode, then the `set_rx_address` function should be used next, before setting the TX address (set_tx_address). This function sets the 5 byte address (buffer) to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 5 MSB of data pipe 1 address and should be set with a 1 byte address.  
+4. If you plan to alternate an NRF24L01 device between RX Mode and TX Mode, rather than have dedicated primary transmitter and primary receiver setup - then the `set_rx_address` function should be used next, before setting the TX address (set_tx_address). This function sets the 5 byte address to the specified data pipe. Addresses for `DATA_PIPE_0` (0), `DATA_PIPE_1` (1) and the remaining data pipes can be set with multiple `set_rx_address` calls. Data pipes 2 - 5 use the 4 MSB of data pipe 1 address and should be set with a 1 byte address. If you want to use a 5 byte buffer for data pipes 2 - 5, then the function will automatically set one bye (buffer[0]). This might be useful to visually keep track of the full addresses set to each data pipe when coding. The NRF24L01 has data pipes 0 and 1 enabled by default, but if you set an address for data pipes 2 - 5, they will be enabled automatically.
 
 ```C
 external_status_t set_rx_address(data_pipe_t data_pipe, const uint8_t *buffer);
@@ -128,11 +135,14 @@ external_status_t set_rx_address(data_pipe_t data_pipe, const uint8_t *buffer);
 // example use
 set_rx_address(DATA_PIPE_0, (uint8_t []){0x37, 0x37, 0x37, 0x37, 0x37});
 set_rx_address(DATA_PIPE_1, (uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
-set_rx_address(DATA_PIPE_2, (uint8_t []){0xC8});
-set_rx_address(DATA_PIPE_3, (uint8_t []){0xC9});
+set_rx_address(DATA_PIPE_2, (uint8_t []){0xC8}); // 0xC8 + 0xC7, 0xC7, 0xC7, 0xC7
+set_rx_address(DATA_PIPE_3, (uint8_t []){0xC9}); // 0xC9 + 0xC7, 0xC7, 0xC7, 0xC7
+
+// only writes buffer[0] value to RX_ADD_P3 register as DATA_PIPE_3 is set with 1 byte
+set_rx_address(DATA_PIPE_3, (uint8_t []){0xC9, 0xC9, 0xC9, 0xC9, 0xC9});
 ```  
 
-5. The `set_tx_address` function will set the address to which, a packet will be transmitted to. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes (set_rx_address).  
+5. The `set_tx_address` function will set the destination data pipe address for a packet transmission, into the TX_ADDR register. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes (set_rx_address).  
 
 ```C
 external_status_t set_tx_address(const uint8_t *address);
@@ -148,11 +158,15 @@ set_tx_address((uint8_t []){0xC8, 0xC7, 0xC7, 0xC7, 0xC7}); // matches DATA_PIPE
 external_status_t set_tx_mode(void);
 
 external_status_t set_rx_mode(void);
+
+// example use
+set_tx_mode() // now in TX Mode
+set_rx_mode() // now in RX Mode
 ```  
 
 ### Transmitting A Packet
 
-1. The `tx_packet` function is used to transmit a payload to a recipient NRF24L01 and will return PASS (1) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of FAIL (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached.  
+1. The `tx_packet` function transmits a payload to a recipient NRF24L01 and will return PASS (1) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of FAIL (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached.  
 
 ```C
 external_status_t tx_packet(const void *tx_packet, size_t packet_size);
@@ -163,16 +177,17 @@ external_status_t tx_packet(const void *tx_packet, size_t packet_size);
 ```C
 set_tx_address((uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7}); // matches DATA_PIPE_1 address of recipient
 
-set_tx_mode();
+set_tx_mode(); // now in TX Mode
 
-uint8_t payload = 100;
+uint8_t payload = 100; // data to transmit
 
+// response = PASS (1) || FAIL (0)
 uint8_t response = tx_packet(&payload, sizeof(payload));
 ```  
 
 ### Receiving A Packet
 
-1. The `is_rx_packet` function is used to poll the STATUS register to ascertain in there is a packet in the RX FIFO. If there is a packet available to read, the function will return PASS (1), or FAIL (0) if not.  
+1. The `is_rx_packet` function polls the STATUS register to ascertain in there is a packet in the RX FIFO. The function will return PASS (1) if there is a packet available to read, or FAIL (0) if not.  
 
 ```C
 external_status_t is_rx_packet(void);
@@ -190,26 +205,34 @@ if (is_rx_packet())
 external_status_t rx_packet(void *rx_packet, size_t packet_size);
 
 // example use
-uint8_t message = 0;
-rx_packet(&message, sizeof(message))
-printf("Message received: %d\n", message);
+uint8_t message = 0; // buffer to receive payload value
+
+rx_packet(&message, sizeof(message)); // read payload value from RX FIFO into buffer
+
+printf("Message received:- Payload: %d\n", message);
 ```  
 
-3. Make sure a valid address is set for the data pipe the transmitting NRF24L01 will transmit to. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function, on this recipient device. Set the device to RX Mode (set_rx_mode) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (examples/primary_receiver/).
+3. Make sure a valid destination address is set for the transmitting NRF24L01. The transmitting NRF24L01 TX address should match one of the addresses set through the `set_rx_address` function, on this recipient device. Set the device to RX Mode (set_rx_mode) and use `is_rx_packet` to check if a packet has been successfully received. If so, read the packet through the `rx_packet` function. The `examples` folder contains an example of an NRF24L01 configured as a primary receiver (examples/primary_receiver/).
 
 ```C
 // example
 set_rx_address(DATA_PIPE_0, (uint8_t []){0x37, 0x37, 0x37, 0x37, 0x37}); // Transmitting NRF24L01 TX address should match this address...
 set_rx_address(DATA_PIPE_1, (uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7}); // ...or this address
 
-set_rx_mode();
+set_rx_mode(); // now in RX Mode
 
-uint8_t message = 0;
+uint8_t message = 0; // buffer to receive payload value
 
-while (1) {
+// permanent loop
+while (1) { 
+  // check for packet in RX FIFO
   if (is_rx_packet()) {
-    rx_packet(&message, sizeof(message))
-    printf("Message received: %d\n", message);
+
+    // read payload value into buffer
+    rx_packet(&message, sizeof(message));
+
+    // print message
+    printf("Message received:- Payload: %d\n", message);
   }
 }
 ```  
@@ -219,15 +242,22 @@ while (1) {
 1. The `set_auto_retransmission` function will enable you to set the automatic retransmission delay (ARD) and automatic retransmission count (ARC) settings. Enhanced ShockBurst™ automatically retransmits the original data packet after a programmable delay (the ARD), a max number of times (the ARC), if an auto-acknowledgement is not received from the intended recipient of the packet.  
 
 ```C
-typedef enum retr_delay_e
+typedef enum retr_delay_e // available through nrf24_driver.h
 {
-  ARD_250US = (0x00 << SETUP_RETR_ARD), // Automatic retransmission delay of 250μS
-  ARD_500US = (0x01 << SETUP_RETR_ARD), // Automatic retransmission delay of 500μS
-  ARD_750US = (0x02 << SETUP_RETR_ARD), // Automatic retransmission delay of 750μS
-  ARD_1000US = (0x03 << SETUP_RETR_ARD) // Automatic retransmission delay of 1000μS
+  // Automatic retransmission delay of 250μS
+  ARD_250US = (0x00 << SETUP_RETR_ARD), 
+
+  // Automatic retransmission delay of 500μS
+  ARD_500US = (0x01 << SETUP_RETR_ARD), 
+
+  // Automatic retransmission delay of 750μS
+  ARD_750US = (0x02 << SETUP_RETR_ARD),
+
+  // Automatic retransmission delay of 1000μS 
+  ARD_1000US = (0x03 << SETUP_RETR_ARD) 
 } retr_delay_t;
 
-typedef enum retr_count_e 
+typedef enum retr_count_e // available through nrf24_driver.h
 {
   ARC_NONE = (0x00 << SETUP_RETR_ARC), // ARC disabled
   ARC_1RT = (0x01 << SETUP_RETR_ARC), // ARC of 1
@@ -247,7 +277,7 @@ set_auto_retransmission(ARD_750US, ARC_13RT); // ARD of 750μS & ARC of 13
 2. The `set_rf_data_rate` function sets the air data rate for the NRF24L01, to 1 Mbps, 2 Mbps or 250 kbps.  
 
 ```C
-typedef enum rf_data_rate_e
+typedef enum rf_data_rate_e // available through nrf24_driver.h
 {
   RF_DR_1MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 1 Mbps
   RF_DR_2MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x01 << RF_SETUP_RF_DR_HIGH)), // 2 Mbps
@@ -264,7 +294,7 @@ set_rf_data_rate(RF_DR_250KBPS); // 250 kbps
 3. The `set_rf_power` function sets the TX Mode power level. If your devices are close together, such as when testing, a lower power level is best. The default setting is `RF_PWR_0DBM`.  
 
 ```C
-typedef enum rf_power_e
+typedef enum rf_power_e // available through nrf24_driver.h
 {
   RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR), // -18dBm Tx output power
   RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR), // -12dBm Tx output power
@@ -281,7 +311,7 @@ set_rf_power(RF_PWR_NEG_18DBM); // -18dBm Tx output power
 
 ## Acknowledgments
 
-When I first started learning C and the pico-sdk, I couldn't find many examples of using the NRF24L01 and the Pico. Videos from @guser210 on his [YouTube](https://youtu.be/V4ziwen24Ps) channel and the code shared in his [guser210/NRFDemo](https://github.com/guser210/NRFDemo) repository were instrumental in getting started on the right path.
+When I first started learning C and the pico-sdk, I couldn't find many examples of using the NRF24L01 and the Pico. Videos from [@guser210](https://github.com/guser210) on his [YouTube](https://youtu.be/V4ziwen24Ps) channel and the code shared in his [guser210/NRFDemo](https://github.com/guser210/NRFDemo) repository were instrumental in getting started on the right path.
 
 The excellent multi-platform library [nRF24/RF24](https://github.com/nRF24/RF24) now supports the Pico and the pico-sdk. I learnt a lot from looking through this library.
 
