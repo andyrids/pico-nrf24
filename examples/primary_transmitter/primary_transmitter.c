@@ -28,7 +28,7 @@ const uint8_t CSN_PIN = 5;
 const uint8_t CE_PIN = 6;
 
 const uint32_t BAUDRATE_HZ = 6000000;
-const uint8_t RF_CHANNEL = 80;
+const uint8_t RF_CHANNEL = 110;
 
 /**
  * A setup function to carry out preliminary steps before
