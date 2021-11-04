@@ -24,7 +24,6 @@ connected to the NRF24L01 CE and CSN pins.
 
 | NRF24L01 | Pico      |
 | -------- | --------- | 
-
 | VCC      | 3V3 (OUT) |
 | GND      | Any GND   | 
 | CE       | Any GP    |
@@ -34,7 +33,6 @@ This table shows the available pins for connecting the NRF24L01 SPI pins to each
 
 | NRF24L01 | Pico SPI 0           | Pico SPI 1       |
 | -------- | -------------------- | ---------------- |
-
 | SCK      | GP2, GP6, GP18, GP22 | GP10, GP14, GP26 |
 | COPI     | GP3, GP7, GP19, GP23 | GP11, GP15, GP27 |
 | CIPO     | GP0, GP4, GP16, GP20 | GP8, GP12, GP24  |
@@ -43,19 +41,19 @@ This table shows the available pins for connecting the NRF24L01 SPI pins to each
 
 ```
 project_folder
-├ examples **<- examples using driver**
+├ examples <- examples using driver
 ├ lib
-│ ├ CMakeLists.txt **<- adds subdirectory for folders in lib**
+│ ├ CMakeLists.txt <- adds subdirectory for folders in lib
 │ └ nrf24l01
 |   ├ error_manager
 |   ├ pin_manager
 |   ├ spi_manager
-|   ├ CMakeLists.txt **<- driver CMakeLists.txt**
+|   ├ CMakeLists.txt <- driver CMakeLists.txt
 |   ├ device_config.h
-|   ├ nrf24_driver.h **<- driver interface header**
+|   ├ nrf24_driver.h <- driver interface header
 |   └ nrf24_driver.c     
 ├ test
-└ CMakeLists.txt **<- main project CMakeLists.txt**
+└ CMakeLists.txt <- main project CMakeLists.txt
 ```
 
 The 'nrf24_driver.h' file provides the main interface, which uses utility functions from other components (error_manager, pin_manager and spi_manager) to interact with the NRF24L01. `device_config.h` contains the full register map for the nRF24L01 and defines specific
