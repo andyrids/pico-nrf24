@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
+ * @file primary_receiver.c
+ * 
+ * @brief example of NRF24L01 setup as a primary receiver using the 
+ * NRF24L01 driver.
+ */
+
 #include <stdio.h>
 
 #include "nrf24_driver.h"
@@ -8,7 +26,6 @@ const uint8_t COPI_PIN = 3;
 const uint8_t CIPO_PIN = 4;
 const uint8_t CSN_PIN = 5;
 const uint8_t CE_PIN = 6;
-const uint8_t IRQ_PIN = 7;
 
 const uint32_t BAUDRATE_HZ = 6000000;
 const uint8_t RF_CHANNEL = 80;
@@ -30,6 +47,7 @@ external_status_t setup(void) {
   // external_status_t PASS (1) or FAIL (0) is returned by all PUBLIC API functions
   external_status_t status = PASS;
 
+  // initial setup states
   typedef enum states_e
   {
     INIT_PICO, 
@@ -42,7 +60,7 @@ external_status_t setup(void) {
   } states_t;
 
   // pointer to array of states
-  uint8_t *setup_states = (uint8_t[]){ 
+  uint8_t *setup_states = (uint8_t []){ 
     INIT_PICO, 
     INIT_NRF24, 
     SET_PAYLOAD_SIZE, 
@@ -131,6 +149,7 @@ int main(void) {
     while (1) { tight_loop_contents(); }
   }
 
+ /*  for debugging
   uint8_t value = debug_address(CONFIG);
   printf("CONFIG: 0x%x\n", value);
 
@@ -154,7 +173,7 @@ int main(void) {
   printf("RX_ADDR_P0: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
   
   debug_address_bytes(RX_ADDR_P1, buffer, FIVE_BYTES);
-  printf("RX_ADDR_P1: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+  printf("RX_ADDR_P1: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]); */
 
   sleep_ms(1000);
 
@@ -177,7 +196,7 @@ int main(void) {
 
       case READ_PACKET:
         next_state = rx_packet(&packet, ONE_BYTE) ? PRINT_PACKET : ERROR;
-        // &(initial_state[PRINT_PACKET]) || &(initial_state[ERROR])
+        // &(initial_state[PRINT_PACKET]) or &(initial_state[ERROR])
         prx_states = &(initial_state[next_state]); // prx_states = initial_state + next_state
       break;
 

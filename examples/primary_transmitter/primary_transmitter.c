@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2021, A. Ridyard.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License v2.0 as
+ * published by the Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+ * GNU General Public License for more details.
+ * 
+ * @file primary_transmitter.c
+ * 
+ * @brief example of NRF24L01 setup as a primary receiver using the 
+ * NRF24L01 driver.
+ */
+
 #include <stdio.h>
 
 #include "nrf24_driver.h"
@@ -8,7 +26,6 @@ const uint8_t MOSI_PIN = 3;
 const uint8_t MISO_PIN = 4;
 const uint8_t CSN_PIN = 5;
 const uint8_t CE_PIN = 6;
-const uint8_t IRQ_PIN = 7;
 
 const uint32_t BAUDRATE_HZ = 6000000;
 const uint8_t RF_CHANNEL = 80;
@@ -108,6 +125,7 @@ int main(void) {
     while (1) { tight_loop_contents(); }
   }
 
+ /*  for debugging
   uint8_t value = debug_address(CONFIG);
   printf("CONFIG: 0x%X\n", value);
 
@@ -131,7 +149,7 @@ int main(void) {
   printf("RX_ADDR_P0: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
   debug_address_bytes(TX_ADDR, buffer, FIVE_BYTES);
-  printf("TX_ADDR: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+  printf("TX_ADDR: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]); */
 
   sleep_ms(1000);
 
@@ -155,7 +173,7 @@ int main(void) {
           next_state = tx_packet(&packet, sizeof(packet)) ? AUTO_ACK_RECEIVED : ERROR;
           time_response = to_us_since_boot(get_absolute_time()); // response time
 
-          // &(initial_state[AUTO_ACK_RECEIVED]) || &(initial_state[ERROR])
+          // &(initial_state[AUTO_ACK_RECEIVED]) or &(initial_state[ERROR])
           ptx_states = &(initial_state[next_state]); // ptx_states = initial_state + next_state
       break;
 
