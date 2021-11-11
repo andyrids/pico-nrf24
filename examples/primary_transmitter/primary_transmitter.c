@@ -74,17 +74,17 @@ int main(void)
 
   nrf_client_t my_nrf;
 
-  printf("Create client: %s\n", (nrf_driver_create_client(&my_nrf)) ? "PASS" : "FAIL" );
+  // initialise my_nrf
+  printf("Create client: %s\n", (nrf_driver_create_client(&my_nrf)) ? "Y" : "N" );
 
-  printf("configure: %s\n", (my_nrf.configure(&my_pins, my_baudrate)) ? "PASS" : "FAIL");
+  // configure GPIO pins and SPI
+  printf("configure: %s\n", (my_nrf.configure(&my_pins, my_baudrate)) ? "Y" : "N");
 
-  printf("initialise: %s\n", (my_nrf.initialise(NULL)) ? "PASS" : "FAIL");
+  // not using my_config, but instead using default configuration (NULL) 
+  printf("initialise: %s\n", (my_nrf.initialise(NULL)) ? "Y" : "N");
 
-  printf("payload_size: %s\n", (my_nrf.payload_size(ALL_DATA_PIPES, ONE_BYTE)) ? "PASS" : "FAIL");
-
-  printf("tx_destination: %s\n", (my_nrf.tx_destination((uint8_t[]){0xC9,0xC7,0xC7,0xC7,0xC7})) ? "PASS" : "FAIL");
-
-  printf("TX Mode: %s\n", (my_nrf.tx_mode()) ? "PASS" : "FAIL");
+  // set to TX Mode
+  printf("TX Mode: %s\n", (my_nrf.tx_mode()) ? "Y" : "N");
 
   printf("\nhttps://www.rapidtables.com/convert/number/ascii-hex-bin-dec-converter.html\n");
 
@@ -104,25 +104,17 @@ int main(void)
   printf("SETUP_RETR: 0x%X\n", value);
 
   value = debug_address(RF_SETUP);
-  printf("RF_SETUP: 0x%X\n", value);
+  printf("RF_SETUP: 0x%X\n\n", value);
 
-  uint8_t buffer[5];
-  debug_address_bytes(RX_ADDR_P0, buffer, FIVE_BYTES);
-  printf("RX_ADDR_P0: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-
-  debug_address_bytes(TX_ADDR, buffer, FIVE_BYTES);
-  printf("TX_ADDR: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-
-
-
-  // uint64_t pause_end = delayed_by_ms(get_absolute_time(), 1000); // time to remain in PAUSE state
-
+  // payload sent to receiver data pipe 0
   uint8_t payload_zero = 123;
 
+  // payload sent to receiver data pipe 1
   uint8_t payload_one[5] = "Hello";
 
   typedef struct payload_two_s { uint8_t one; uint8_t two; } payload_two_t;
 
+  // payload sent to receiver data pipe 2
   payload_two_t payload_two = { .one = 123, .two = 213 };
 
   fn_status_t success = 0;
@@ -130,43 +122,101 @@ int main(void)
   uint64_t time_sent = 0; // time packet was sent
   uint64_t time_response = 0; // response time after packet sent
 
+  // receiver data pipe address the packet was sent to
+  uint8_t tx_destination[5];
+
   while (1) {
     // send to receiver's DATA_PIPE_0 address
     my_nrf.tx_destination((uint8_t[]){0x37,0x37,0x37,0x37,0x37});
 
+    // time packet was sent
     time_sent = to_us_since_boot(get_absolute_time()); // time sent
 
     success = my_nrf.send_packet(&payload_zero, sizeof(payload_zero));
 
+    // time auto-acknowledge was received
     time_response = to_us_since_boot(get_absolute_time()); // response time
 
-    printf("payload_zero transmission success:- Response time: %lluμS | Payload: %d\n", time_response - time_sent, payload_zero);
+    debug_address_bytes(TX_ADDR, tx_destination, FIVE_BYTES);
+
+    if (success)
+    {
+      printf(
+        "Packet sent:- Address: 0x%X%X%X%X%X | Response: %lluμS | Payload: %d\n",
+        tx_destination[0],
+        tx_destination[1],
+        tx_destination[2],
+        tx_destination[3],
+        tx_destination[4],
+        time_response - time_sent, 
+        payload_zero
+      );
+    } else {
+      printf("Packet not sent:- Receiver not available.\n");
+    }
 
     sleep_ms(5000);
 
     // send to receiver's DATA_PIPE_1 address
     my_nrf.tx_destination((uint8_t[]){0xC7,0xC7,0xC7,0xC7,0xC7});
 
+    // time packet was sent
     time_sent = to_us_since_boot(get_absolute_time()); // time sent
 
     success = my_nrf.send_packet(payload_one, sizeof(payload_one));
     
+    // time auto-acknowledge was received
     time_response = to_us_since_boot(get_absolute_time()); // response time
 
-    printf("payload_one transmission success:- Response time: %lluμS | Payload: %s\n", time_response - time_sent, payload_one);
+    debug_address_bytes(TX_ADDR, tx_destination, FIVE_BYTES);
+
+    if (success)
+    {
+      printf(
+        "Packet sent:- Address: 0x%X%X%X%X%X | Response: %lluμS | Payload: %s\n",
+        tx_destination[0],
+        tx_destination[1],
+        tx_destination[2],
+        tx_destination[3],
+        tx_destination[4],
+        time_response - time_sent, 
+        payload_one
+      );
+    } else {
+      printf("Packet not sent:- Receiver not available.\n");
+    }
 
     sleep_ms(5000);
 
     // send to receiver's DATA_PIPE_2 address
     my_nrf.tx_destination((uint8_t[]){0xC8,0xC7,0xC7,0xC7,0xC7});
 
+    // time packet was sent
     time_sent = to_us_since_boot(get_absolute_time()); // time sent
 
     success = my_nrf.send_packet(&payload_two, sizeof(payload_two));
     
+    // time auto-acknowledge was received
     time_response = to_us_since_boot(get_absolute_time()); // response time
 
-    printf("payload_two transmission success:- Response time: %lluμS | Payload: %d & %d\n", time_response - time_sent, payload_two.one, payload_two.two);
+    debug_address_bytes(TX_ADDR, tx_destination, FIVE_BYTES);
+
+    if (success)
+    {
+      printf(
+        "Packet sent:- Address: 0x%X%X%X%X%X | Response: %lluμS | Payload: %d & %d\n",
+        tx_destination[0],
+        tx_destination[1],
+        tx_destination[2],
+        tx_destination[3],
+        tx_destination[4],
+        time_response - time_sent,
+        payload_two.one,
+        payload_two.two
+      );
+    } else {
+      printf("Packet not sent:- Receiver not available.\n");
+    }
 
     sleep_ms(5000);
   }

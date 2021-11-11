@@ -174,7 +174,7 @@ int main(void)
           my_nrf.read_packet(&payload_zero, sizeof(payload_zero));
 
           // receiving a one byte uint8_t payload on DATA_PIPE_0
-          printf("Packet received:- Payload (%d) on data pipe (%d)\n", payload_zero, pipe_number);
+          printf("\nPacket received:- Payload (%d) on data pipe (%d)\n", payload_zero, pipe_number);
         break;
         
         case DATA_PIPE_1:
@@ -182,7 +182,7 @@ int main(void)
           my_nrf.read_packet(payload_one, sizeof(payload_one));
 
           // receiving a five byte string payload on DATA_PIPE_1
-          printf("Packet received:- Payload (%s) on data pipe (%d)\n", payload_one, pipe_number);
+          printf("\nPacket received:- Payload (%s) on data pipe (%d)\n", payload_one, pipe_number);
         break;
         
         case DATA_PIPE_2:
@@ -190,7 +190,7 @@ int main(void)
           my_nrf.read_packet(&payload_two, sizeof(payload_two));
 
           // receiving a two byte struct payload on DATA_PIPE_2
-          printf("Packet received:- Payload (1: %d, 2: %d) on data pipe (%d)\n", payload_two.one, payload_two.two, pipe_number);
+          printf("\nPacket received:- Payload (1: %d, 2: %d) on data pipe (%d)\n", payload_two.one, payload_two.two, pipe_number);
         break;
         
         case DATA_PIPE_3:
