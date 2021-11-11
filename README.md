@@ -339,7 +339,7 @@ fn_status_t nrf_driver_payload_size(data_pipe_t data_pipe, size_t size);
 my_nrf.payload_size(ALL_DATA_PIPES, FIVE_BYTES);
 ```
 
-5- If you alternate between RX Mode and TX Mode, without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. `rx_destination` sets an address to the specified data pipe. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`.
+5- If you alternate between RX Mode and TX Mode, without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`. `rx_destination` sets an address to the specified data pipe.
 
 The width of this address is determined by the address width setting. By default an address width of 5 bytes is used. Addresses for the data pipes are set with multiple `rx_destination` calls. Data pipes 2 - 5 use the remaining MSB (address width - 1 byte) of the data pipe 1 address and are set with a 1 byte address. 
 
