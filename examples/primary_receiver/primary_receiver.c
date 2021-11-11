@@ -13,7 +13,8 @@
  * @file primary_receiver.c
  * 
  * @brief example of NRF24L01 setup as a primary receiver using the 
- * NRF24L01 driver.
+ * NRF24L01 driver. Different payload widths are set for the data pipes,
+ * in order to receive different data structures from the transmitter.
  */
 
 #include <stdio.h>
@@ -21,137 +22,94 @@
 #include "nrf24_driver.h"
 #include "pico/stdlib.h"
 
-const uint8_t SCK_PIN = 2;
-const uint8_t COPI_PIN = 3;
-const uint8_t CIPO_PIN = 4;
-const uint8_t CSN_PIN = 5;
-const uint8_t CE_PIN = 6;
+#include <tusb.h> // TinyUSB tud_cdc_connected()
 
-const uint32_t BAUDRATE_HZ = 6000000;
-const uint8_t RF_CHANNEL = 110;
-
-/**
- * A setup function to carry out preliminary steps before
- * Pico and NRF24L01 are ready to use.
- * 
- * 1. Initialise GPIO pins & spi (init_pico)
- * 2. Initialise the NRF24L01 (init_nrf24)
- * 3. Set the payload size (set_payload_size)
- * 4. Set the address to receive on data pipe 0 (set_rx_address)
- * 5. Set the address to receive on data pipe 1 (set_rx_address)
- * 6. Set NRF24L01 to RX Mode (set_rx_mode) 
- * 6. Exit setup
- */
-external_status_t setup(void) {
-  
-  // external_status_t PASS (1) or FAIL (0) is returned by all PUBLIC API functions
-  external_status_t status = PASS;
-
-  // initial setup states
-  typedef enum states_e
-  {
-    INIT_PICO, 
-    INIT_NRF24, 
-    SET_PAYLOAD_SIZE,
-    SET_RX_ADDRESS_ONE, 
-    SET_RX_ADDRESS_TWO,
-    SET_RX_MODE, 
-    EXIT
-  } states_t;
-
-  // pointer to array of states
-  uint8_t *setup_states = (uint8_t []){ 
-    INIT_PICO, 
-    INIT_NRF24, 
-    SET_PAYLOAD_SIZE, 
-    SET_RX_ADDRESS_ONE, 
-    SET_RX_ADDRESS_TWO, 
-    SET_RX_MODE, 
-    EXIT 
-  };
-
-  // initial state is INIT_PICO
-  uint8_t next_state = INIT_PICO;
-
-  // while next_state is not EXIT
-  while (next_state != EXIT)
-  {
-    // test current value then increment pointer
-    switch (*(setup_states++)) 
-    {
-      case INIT_PICO:
-        status = init_pico(CIPO_PIN, COPI_PIN, CSN_PIN, SCK_PIN, CE_PIN, BAUDRATE_HZ);
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      case INIT_NRF24:
-        status = init_nrf24(RF_CHANNEL);
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      case SET_PAYLOAD_SIZE:
-        status = set_payload_size(ALL_DATA_PIPES, ONE_BYTE);
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      case SET_RX_ADDRESS_ONE: // matches primary_transmitter TX_ADDR value
-        status = set_rx_address(DATA_PIPE_0, (uint8_t[]){0x37, 0x37, 0x37, 0x37, 0x37});
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      case SET_RX_ADDRESS_TWO:
-        status = set_rx_address(DATA_PIPE_1, (uint8_t[]){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      case SET_RX_MODE:
-        status = set_rx_mode();
-        next_state = (status == PASS) ? *setup_states : EXIT;
-      break;
-
-      default:
-        status = FAIL;
-        next_state = EXIT;
-      break;
-    }
-  }
-
-  // indicate final state reached.
-  printf("Reached setup state %d of 6, before EXIT.\n\n", *setup_states);
-
-  // if any state transition failed, status == FAIL
-  return status;
-}
-
-int main(void) {
+int main(void)
+{
   // initialize all present standard stdio types
   stdio_init_all();
 
-  // descriptive enum for all static & transitional states
-  typedef enum prx_states_e { WAIT_FOR_PACKET, READ_PACKET, PRINT_PACKET, ERROR } prx_states_t;
-
-  /**
-   * pointer to array of the static & transitional states.
-   * state enum value is the same as its array index.
-   */
-  uint8_t *prx_states = (uint8_t[]){ WAIT_FOR_PACKET, READ_PACKET, PRINT_PACKET, ERROR };
-
-  // used to set/reset ptx_states position
-  uint8_t *initial_state = prx_states;
-
-  sleep_ms(10000); // gives time to open/restart PuTTy
-
-  // attempt setup of NRF24L01
-  if (setup() != PASS)
+  // wait until the CDC ACM (serial port emulation) is connected
+  while (!tud_cdc_connected()) 
   {
-    printf("NRF24L01 setup failed.\n");
-    // hold in perminent loop
-    while (1) { tight_loop_contents(); }
+    sleep_ms(10);
   }
 
- /*  for debugging
+  // GPIO pin numbers
+  pin_manager_t my_pins = { 
+    .sck = 2,
+    .copi = 3, 
+    .cipo = 4, 
+    .csn = 5, 
+    .ce = 6 
+  };
+
+  /**
+   * nrf_manager_t can be passed to the nrf_client_t
+   * initialise function, to specify the NRF24L01 
+   * configuration. If NULL is passed to the initialise 
+   * function, then the default configuration will be used.
+   */
+  nrf_manager_t my_config = {
+    // RF Channel 
+    .channel = 110,
+
+    // AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
+    .address_width = AW_5_BYTES,
+
+    // RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
+    .data_rate = RF_DR_1MBPS,
+
+    // RF_PWR_NEG_18DBM, RF_PWR_NEG_12DBM, RF_PWR_NEG_6DBM, RF_PWR_0DBM
+    .power = RF_PWR_0DBM,
+
+    // ARC_NONE...ARC_15RT
+    .retr_count = ARC_10RT,
+
+    // ARD_250US, ARD_500US, ARD_750US, ARD_1000US
+    .retr_delay = ARD_250US 
+  };
+
+  // SPI baudrate
+  uint32_t my_baudrate = 1000000;
+
+  // provides access to driver functions
+  nrf_client_t my_nrf;
+
+  // initialise my_nrf
+  printf("Create client: %s\n", (nrf_driver_create_client(&my_nrf)) ? "Y" : "N");
+
+  // configure GPIO pins and SPI
+  printf("configure: %s\n", (my_nrf.configure(&my_pins, my_baudrate)) ? "Y" : "N");
+
+  // not using my_config, but instead using default configuration (NULL) 
+  printf("initialise: %s\n", (my_nrf.initialise(NULL)) ? "Y" : "N");
+
+  // set data pipe 0 to a one byte payload width
+  printf("payload_size DATA_PIPE_0: %s\n", (my_nrf.payload_size(DATA_PIPE_0, ONE_BYTE)) ? "Y" : "N");
+
+  // set data pipe 1 to a five byte payload width
+  printf("payload_size DATA_PIPE_1: %s\n", (my_nrf.payload_size(DATA_PIPE_1, FIVE_BYTES)) ? "Y" : "N");
+
+  // set data pipe 2 to a two byte payload width
+  printf("payload_size DATA_PIPE_2: %s\n", (my_nrf.payload_size(DATA_PIPE_2, TWO_BYTES)) ? "Y" : "N");
+
+  /**
+   * set addresses for DATA_PIPE_0 - DATA_PIPE_3.
+   * These are addresses the transmitter will send its packets to.
+   */
+  my_nrf.rx_destination(DATA_PIPE_0, (uint8_t[]){0x37,0x37,0x37,0x37,0x37});
+  my_nrf.rx_destination(DATA_PIPE_1, (uint8_t[]){0xC7,0xC7,0xC7,0xC7,0xC7});
+  my_nrf.rx_destination(DATA_PIPE_2, (uint8_t[]){0xC8,0xC7,0xC7,0xC7,0xC7});
+  my_nrf.rx_destination(DATA_PIPE_3, (uint8_t[]){0xC9,0xC7,0xC7,0xC7,0xC7});
+
+  // set to RX Mode
+  printf("RX Mode: %s\n", (my_nrf.rx_mode()) ? "Y" : "N");
+
+  printf("\nhttps://www.rapidtables.com/convert/number/ascii-hex-bin-dec-converter.html\n");
+
   uint8_t value = debug_address(CONFIG);
-  printf("CONFIG: 0x%x\n", value);
+  printf("\nCONFIG: 0x%X\n", value);
 
   value = debug_address(EN_AA);
   printf("EN_AA: 0x%X\n", value);
@@ -168,55 +126,86 @@ int main(void) {
   value = debug_address(RF_SETUP);
   printf("RF_SETUP: 0x%X\n", value);
 
+  value = debug_address(RX_PW_P0);
+  printf("RX_PW_P0: 0x%X\n", value);
+
+  value = debug_address(RX_PW_P1);
+  printf("RX_PW_P1: 0x%X\n", value);
+
+  value = debug_address(RX_PW_P2);
+  printf("RX_PW_P2: 0x%X\n", value);
+
   uint8_t buffer[5];
   debug_address_bytes(RX_ADDR_P0, buffer, FIVE_BYTES);
   printf("RX_ADDR_P0: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
   
   debug_address_bytes(RX_ADDR_P1, buffer, FIVE_BYTES);
-  printf("RX_ADDR_P1: %X %X %X %X %X\n\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]); */
+  printf("RX_ADDR_P1: %X %X %X %X %X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
-  sleep_ms(1000);
+  debug_address_bytes(RX_ADDR_P2, buffer, ONE_BYTE);
+  printf("RX_ADDR_P2: %X\n", buffer[0]);
 
-  // initial state is WAIT_FOR_PACKET
-  uint8_t next_state = WAIT_FOR_PACKET;
+  debug_address_bytes(RX_ADDR_P3, buffer, ONE_BYTE);
+  printf("RX_ADDR_P3: %X\n\n", buffer[0]);
 
-  // packet buffer to receive
-  uint8_t packet = 0;
+  // data pipe number a packet was received on
+  uint8_t pipe_number = 0;
 
-  while (next_state != ERROR)
+  // holds payload_zero sent by the transmitter
+  uint8_t payload_zero = 0;
+
+  // holds payload_one sent by the transmitter
+  uint8_t payload_one[5];
+
+  // two byte struct sent by transmitter
+  typedef struct payload_two_s { uint8_t one; uint8_t two; } payload_two_t;
+
+  // holds payload_two struct sent by the transmitter
+  payload_two_t payload_two;
+
+  while (1)
   {
-    switch (*prx_states)
+    if (my_nrf.is_packet(&pipe_number))
     {
-      case WAIT_FOR_PACKET:
-        // if packet in RX FIFO, transition to RX_PACKET state
-        next_state = is_rx_packet() ? READ_PACKET : WAIT_FOR_PACKET;
-        // &(initial_state[RX_PACKET])
-        prx_states = &(initial_state[next_state]); // prx_states = initial_state + next_state			
-      break;
+      switch (pipe_number)
+      {
+        case DATA_PIPE_0:
+          // read payload
+          my_nrf.read_packet(&payload_zero, sizeof(payload_zero));
 
-      case READ_PACKET:
-        next_state = rx_packet(&packet, ONE_BYTE) ? PRINT_PACKET : ERROR;
-        // &(initial_state[PRINT_PACKET]) or &(initial_state[ERROR])
-        prx_states = &(initial_state[next_state]); // prx_states = initial_state + next_state
-      break;
+          // receiving a one byte uint8_t payload on DATA_PIPE_0
+          printf("Packet received:- Payload (%d) on data pipe (%d)\n", payload_zero, pipe_number);
+        break;
+        
+        case DATA_PIPE_1:
+          // read payload
+          my_nrf.read_packet(payload_one, sizeof(payload_one));
 
-      case PRINT_PACKET:
-        printf("Packet receipt success:- Payload: %d\n", packet);
-        next_state = WAIT_FOR_PACKET;
-        // &(initial_state[WAIT_FOR_PACKET])
-        prx_states = &(initial_state[next_state]); // prx_states = initial_state + next_state
-      break;
+          // receiving a five byte string payload on DATA_PIPE_1
+          printf("Packet received:- Payload (%s) on data pipe (%d)\n", payload_one, pipe_number);
+        break;
+        
+        case DATA_PIPE_2:
+          // read payload
+          my_nrf.read_packet(&payload_two, sizeof(payload_two));
 
-      default:
-        next_state = ERROR;
-        prx_states = &(initial_state[next_state]);
-      break;
+          // receiving a two byte struct payload on DATA_PIPE_2
+          printf("Packet received:- Payload (1: %d, 2: %d) on data pipe (%d)\n", payload_two.one, payload_two.two, pipe_number);
+        break;
+        
+        case DATA_PIPE_3:
+        break;
+        
+        case DATA_PIPE_4:
+        break;
+        
+        case DATA_PIPE_5:
+        break;
+        
+        default:
+        break;
+      }
     }
   }
-
-  if (next_state == ERROR)
-  {
-    printf("Packet receipt failed.\n");
-    while (1) { tight_loop_contents(); }
-  }
+  
 }
