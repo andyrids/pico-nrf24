@@ -86,7 +86,7 @@ typedef enum fn_status_e
 
 The driver interface file `nrf_driver.h` provides access to a number of structs, such as the `pin_manager_t`, `nrf_manager_t` and `nrf_client_t` structs. 
 
-1. `pin_manager_t` stores CIPO, COPI, SCK, CSN and CE pin numbers:  
+1- `pin_manager_t` stores CIPO, COPI, SCK, CSN and CE pin numbers:  
 
 ```C
 // available through nrf24_driver.h
@@ -100,7 +100,7 @@ typedef struct pin_manager_s
 } pin_manager_t;
 ```
 
-2. `nrf_manager_t` stores NRF24L01 register configuration settings, which can be used to initialise the device with different settings from the default configuration, or switch a range of configuration settings at any time during a program. Individual settings can also be changed through the driver interface functions (see [Optional Configurations](https://github.com/AndyRids/pico-nrf24#optional-configurations) section).  
+2- `nrf_manager_t` stores NRF24L01 register configuration settings, which can be used to initialise the device with different settings from the default configuration, or switch a range of configuration settings at any time during a program. Individual settings can also be changed through the driver interface functions (see [Optional Configurations](https://github.com/AndyRids/pico-nrf24#optional-configurations) section).  
 
 ```C
 // available through nrf24_driver.h
@@ -141,7 +141,7 @@ typedef struct nrf_manager_s
 } nrf_manager_t;
 ```
 
-3. `nrf_client_t` provides access to all functions used to interact with the NRF24L01 and is initialized using the `nrf_driver_create_client` function. These functions will be covered in detail:
+3- `nrf_client_t` provides access to all functions used to interact with the NRF24L01 and is initialized using the `nrf_driver_create_client` function. These functions will be covered in detail:
 
 ```C
 // available through nrf24_driver.h
@@ -205,7 +205,7 @@ fn_status_t nrf_driver_create_client(nrf_client_t *client);
 
 ### Initial Setup
 
-1. An `nrf_client_t` should be declared and initialized though the `nrf_driver_create_client` function:
+1- An `nrf_client_t` should be declared and initialized though the `nrf_driver_create_client` function:
 
 ```C
 #include "nrf24_driver.h"
@@ -216,7 +216,7 @@ nrf_client_t my_nrf;
 nrf_driver_create_client(&my_nrf);
 ```
 
-2. A `pin_manager_t` struct should be used, to store the CIPO, COPI, SCK, CSN and CE pin numbers and passed to the `configure` function along with an SPI baudrate in Hz. The `configure` function should be called first after the `nrf_client_t` is initialized:
+2- A `pin_manager_t` struct should be used, to store the CIPO, COPI, SCK, CSN and CE pin numbers and passed to the `configure` function along with an SPI baudrate in Hz. The `configure` function should be called first after the `nrf_client_t` is initialized:
 
 ```C
 /**
@@ -249,7 +249,7 @@ uint32_t my_baudrate = 1000000;
 my_nrf.configure(&my_pins, my_baudrate);
 ```
 
-3. The `initialise` function should be called next and only once, passing NULL to use the default NRF24L01 configuration or passing an `nrf_manager_t` struct to configure the device to your preferred settings.
+3- The `initialise` function should be called next and only once, passing NULL to use the default NRF24L01 configuration or passing an `nrf_manager_t` struct to configure the device to your preferred settings.
 
 ```C
 /**
@@ -307,7 +307,7 @@ nrf_manager_t my_config = {
 my_nrf.initialise(&my_config);
 ```
 
-4. The payload size for received packets can be set through the `payload_size` function, for a specific data pipe or for all data pipes:
+4- The payload size for received packets can be set through the `payload_size` function, for a specific data pipe or for all data pipes:
 
 ```C
 // available through nrf24_driver.h
@@ -339,7 +339,7 @@ fn_status_t nrf_driver_payload_size(data_pipe_t data_pipe, size_t size);
 my_nrf.payload_size(ALL_DATA_PIPES, FIVE_BYTES);
 ```
 
-4. If you alternate between RX Mode and TX Mode, without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. `rx_destination` sets an address to the specified data pipe. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`.
+5- If you alternate between RX Mode and TX Mode, without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. `rx_destination` sets an address to the specified data pipe. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`.
 
 The width of this address is determined by the address width setting. By default an address width of 5 bytes is used. Addresses for the data pipes are set with multiple `rx_destination` calls. Data pipes 2 - 5 use the remaining MSB (address width - 1 byte) of the data pipe 1 address and are set with a 1 byte address. 
 
@@ -379,7 +379,7 @@ my_nrf.rx_destination(DATA_PIPE_3, (uint8_t[]){0xC9});
 my_nrf.rx_destination(DATA_PIPE_4, (uint8_t[]){0xCA, 0xC7, 0xC7, 0xC7, 0xC7});
 ```  
 
-5. The `tx_destination` function will set the destination data pipe address for a packet transmission, into the TX_ADDR register. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes, through `rx_destination`.  
+6- The `tx_destination` function will set the destination data pipe address for a packet transmission, into the TX_ADDR register. This address must match one of the addresses a recipient NRF24L01 has set for each of its data pipes, through `rx_destination`.  
 
 ```C
 /**
@@ -416,7 +416,7 @@ my_nrf.tx_destination((uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
 my_nrf.tx_destination((uint8_t[]){0xCA, 0xC7, 0xC7, 0xC7, 0xC7});
 ```  
 
-6. The `tx_mode` and `rx_mode` functions switch the NRF24L01 between TX Mode and RX Mode. Regarding TX Mode, technically the device is only in this mode when the CONFIG register PRIM_RX bit is unset (0) **AND** the CE pin is HIGH for more than 10μs **AND** the TX_FIFO is not empty **AND** then after 130μs have passed. `tx_mode` function will reset the PRIM_RX bit in preparation for TX Mode, but will in fact remain in Standby-I mode (datasheet 6.1.1 State diagram). `send_packet` function will transfer a packet to the TX FIFO (TX FIFO not empty) and will drive the CE pin HIGH, transitioning to TX Mode state and resulting in packet transmission. 
+7- The `tx_mode` and `rx_mode` functions switch the NRF24L01 between TX Mode and RX Mode. Regarding TX Mode, technically the device is only in this mode when the CONFIG register PRIM_RX bit is unset (0) **AND** the CE pin is HIGH for more than 10μs **AND** the TX_FIFO is not empty **AND** then after 130μs have passed. `tx_mode` function will reset the PRIM_RX bit in preparation for TX Mode, but will in fact remain in Standby-I mode (datasheet 6.1.1 State diagram). `send_packet` function will transfer a packet to the TX FIFO (TX FIFO not empty) and will drive the CE pin HIGH, transitioning to TX Mode state and resulting in packet transmission. 
 
 ```C
 /**
@@ -465,7 +465,7 @@ my_nrf.rx_mode();
 
 ### Transmitting A Packet
 
-1. Make sure that:
+1- Make sure that:
 
    - Correct TX destination address has been set - `tx_destination`.
    - Device is in TX Mode - `tx_mode`.  
@@ -478,7 +478,7 @@ my_nrf.tx_destination((uint8_t[]){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
 my_nrf.tx_mode();
 ```
 
-2. The `send_packet` function transmits a payload to a recipient NRF24L01 and will return SPI_MNGR_OK (2) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of ERROR (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached. The packet size must be set by the recipient device through the `payload_size` function, for its data pipe the transmitting device will send the packet to.
+2- The `send_packet` function transmits a payload to a recipient NRF24L01 and will return SPI_MNGR_OK (2) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of ERROR (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached. The packet size must be set by the recipient device through the `payload_size` function, for its data pipe the transmitting device will send the packet to.
 
 ```C
 /**
@@ -521,7 +521,7 @@ if (my_nrf.send_packet(my_packet, sizeof(my_packet)))
 
 ### Receiving A Packet
 
-1. Make sure that:
+1- Make sure that:
 
    - Correct RX destination address has been set - `rx_destination`.
    - Correct payload size for its data pipes - `payload_size`
@@ -541,7 +541,7 @@ my_nrf.payload_size(ALL_DATA_PIPES, FIVE_BYTES);
 my_nrf.rx_mode();
 ```
 
-2. The `is_packet` function polls the STATUS register to ascertain if there is a packet in the RX FIFO. The function will return NRF_MNGR_OK (3) if there is a packet available to read, or ERROR (0) if not. If you want to store the data pipe number the packet was addressed to, call the function with the address of a uint8_t variable. If this detail is not relevant to your program, call `is_packet` with a NULL argument.
+2- The `is_packet` function polls the STATUS register to ascertain if there is a packet in the RX FIFO. The function will return NRF_MNGR_OK (3) if there is a packet available to read, or ERROR (0) if not. If you want to store the data pipe number the packet was addressed to, call the function with the address of a uint8_t variable. If this detail is not relevant to your program, call `is_packet` with a NULL argument.
 
 ```C
 /**
@@ -575,7 +575,7 @@ if (my_nrf.is_packet(&pipe_no))
 }
 ```  
 
-3. The `read_packet` function is used to read an available packet from the RX FIFO into the provided buffer.  
+3- The `read_packet` function is used to read an available packet from the RX FIFO into the provided buffer.  
 
 ```C
 /**
@@ -612,7 +612,7 @@ if (my_nrf.is_packet(&pipe_no))
 
 Aside from using a `nrf_manager` struct to initialise the NRF24L01 with different configuration settings through the `initialise` function, individual settings can be changed within a program through the following functions:
 
-1. the `rf_channel` function sets the RF channel for the device. Devices must be using the same channel in order to communicate with one another.
+1- the `rf_channel` function sets the RF channel for the device. Devices must be using the same channel in order to communicate with one another.
 
 ```C
 /**
@@ -632,7 +632,7 @@ my_nrf.rf_channel(120);
 
 ```
 
-2. The `auto_retransmission` function will enable you to set the automatic retransmission delay (ARD) and automatic retransmission count (ARC) settings. Enhanced ShockBurst™ automatically retransmits the original data packet after a programmable delay (the ARD), a max number of times (the ARC), if an auto-acknowledgement is not received from the intended recipient of the packet.  
+2- The `auto_retransmission` function will enable you to set the automatic retransmission delay (ARD) and automatic retransmission count (ARC) settings. Enhanced ShockBurst™ automatically retransmits the original data packet after a programmable delay (the ARD), a max number of times (the ARC), if an auto-acknowledgement is not received from the intended recipient of the packet.  
 
 ```C
 // available through nrf24_driver.h
@@ -700,7 +700,7 @@ my_nrf.auto_retransmission(ARD_500US, ARC_10RT);
 my_nrf.auto_retransmission(ARD_750US, ARC_13RT);
 ```  
 
-3. The `rf_data_rate` function sets the air data rate for the NRF24L01, to 1 Mbps, 2 Mbps or 250 kbps.  
+3- The `rf_data_rate` function sets the air data rate for the NRF24L01, to 1 Mbps, 2 Mbps or 250 kbps.  
 
 ```C
 // available through nrf24_driver.h
@@ -735,7 +735,7 @@ my_nrf.rf_data_rate(RF_DR_1MBPS);
 my_nrf.rf_data_rate(RF_DR_250KBPS);
 ```  
 
-4. The `rf_power` function sets the TX Mode power level. If your devices are close together, such as when testing, a lower power level is best. The default setting is `RF_PWR_0DBM`.  
+4- The `rf_power` function sets the TX Mode power level. If your devices are close together, such as when testing, a lower power level is best. The default setting is `RF_PWR_0DBM`.  
 
 ```C
 // available through nrf24_driver.h
