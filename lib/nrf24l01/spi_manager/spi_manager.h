@@ -54,54 +54,19 @@ typedef enum spi_pins_e { CIPO, COPI, SCK, ALL_PINS } spi_pins_t;
 typedef enum spi_min_range_e { CIPO_MIN = 0, CSN_MIN, SCK_MIN, COPI_MIN } spi_min_range_t; // lowest available SPI GPIO numbers
 typedef enum spi_max_range_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX, CSN_MAX } spi_max_range_t; // highest available SPI GPIO numbers
 
-// struct to store SPI instance and baudrate
-typedef struct pico_spi_s
-{
-  spi_inst_t *spi_instance; // SPI instance
-  uint32_t spi_baudrate; // SPI baudrate in Hz
-} pico_spi_t;
-
-
-/**
- * Checks the CIPO, COPI and SCK pins and if correct, returns
- * SPI_0, SPI_1 or INSTANCE_ERROR, indicating if all pins are 
- * part of SPI 0, SPI 1 interfaces or not (INSTANCE_ERROR).
- * 
- * @param pin CIPO GPIO pin
- * @param pin COPI GPIO pin
- * @param pin SCK GPIO pin
- * 
- * @return SPI_0 (0), SPI_1 (2), INSTANCE_ERROR (3)
- */
-spi_instance_t spi_manager_check_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t sck_pin);
-
-
-/**
- * Stores the correct SPI instance and baudrate, ready for the 
- * spi_manager_init_spi and spi_manager_deinit_spi to use. Also
- * passes the address to the stored values in a pico_spi_t variable 
- * to the main driver.
- * 
- * @param spi_instance SPI_0 (0) or SPI_1 (1)
- * @param baudrate_hz baudrate in hz
- * 
- * @return pointer to pico_spi_t struct variable
- */
-pico_spi_t* spi_manager_set_spi(spi_instance_t spi_instance, uint32_t baudrate_hz);
-
 
 /**
  * Initialise the SPI interface for read/write operations
  * to the NRF24L01 device over SPI.
  */
-void spi_manager_init_spi(void);
+void spi_manager_init_spi(spi_inst_t *instance, uint32_t baudrate);
 
 
 /**
  * Deinitialise the SPI interface for read/write operations
  * to the NRF24L01 device over SPI.
  */
-void spi_manager_deinit_spi(void);
+void spi_manager_deinit_spi(spi_inst_t *instance);
 
 
 /**
@@ -114,6 +79,6 @@ void spi_manager_deinit_spi(void);
  * 
  * @return OK (0), SPI_FAIL (7)
  */
-internal_status_t spi_manager_transfer(const uint8_t *tx_buffer, uint8_t *rx_buffer, size_t num_bytes);
+fn_status_t spi_manager_transfer(spi_inst_t *instance, const uint8_t *tx_buffer, uint8_t *rx_buffer, size_t len);
 
 #endif // SPI_MANAGER_H

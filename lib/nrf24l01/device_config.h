@@ -366,9 +366,9 @@ typedef enum en_rx_addr_e
 // SETUP_AW register address width (AW) settings
 typedef enum address_width_e
 {
-  AW_3_BYTES = (0x01 << SETUP_AW_AW), // 3 Byte address width
-  AW_4_BYTES = (0x02 << SETUP_AW_AW), // 4 Byte address width
-  AW_5_BYTES = (0x03 << SETUP_AW_AW) // 5 Byte address width
+  AW_3_BYTES = 1, // 3 Byte address width
+  AW_4_BYTES = 2, // 4 Byte address width
+  AW_5_BYTES = 3 // 5 Byte address width
 } address_width_t;
 
 

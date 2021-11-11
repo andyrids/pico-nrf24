@@ -20,33 +20,21 @@
 #ifndef ERROR_MANAGER_H
 #define ERROR_MANAGER_H
 
-// return values for static (private) functions
-typedef enum internal_status_e
+typedef enum fn_status_e
 {
-  OK, // no error
-  PARAMETER_FAIL, // paramater error
-  REGISTER_R_FAIL, // read register error
-  REGISTER_W_FAIL, // write register error
-  TX_MODE_FAIL, // TX Mode error
-  RX_MODE_FAIL, // RX Mode error
-  RX_FIFO_EMPTY, // RX FIFO empty
-  SPI_FAIL // SPI transfer error
-} internal_status_t;
+  ERROR,
+  PIN_MNGR_OK,
+  SPI_MNGR_OK,
+  NRF_MNGR_OK
+} fn_status_t;
 
 // return values for STATUS register functions
-typedef enum internal_status_irq_e
+typedef enum fn_status_irq_e
 {
   NONE_ASSERTED, // no IRQ bits asserted
   RX_DR_ASSERTED, // RX_DR bit asserted
   TX_DS_ASSERTED, // TX_DS bit asserted
   MAX_RT_ASSERTED // MAX_RT bit asserted
-} internal_status_irq_t;
-
-// return values for public driver interface functions
-typedef enum external_status_e
-{
-  FAIL, // operation failed
-  PASS // operation success
-} external_status_t;
+} fn_status_irq_t;
 
 #endif // ERROR_MANAGER_H

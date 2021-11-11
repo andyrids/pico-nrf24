@@ -19,73 +19,97 @@
 #include "pin_manager.h"
 #include "hardware/gpio.h"
 
-// pico_pins_t struct holds GPIO pin values
-static pico_pins_t pico_pins = { .cipo_pin = 100, .copi_pin = 100, .csn_pin = 100, .sck_pin = 100 };
+// represents SPI pins and SPI pin count (ALL_PINS)
+typedef enum spi_pins_e { CIPO, COPI, SCK, ALL_PINS } spi_pins_t;
 
-void csn_put_high(void) {
+typedef enum spi_min_range_e { CIPO_MIN = 0, CSN_MIN, SCK_MIN, COPI_MIN } spi_min_range_t; // lowest available SPI GPIO numbers
+typedef enum spi_max_range_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX, CSN_MAX } spi_max_range_t; // highest available SPI GPIO numbers
 
-  if (pico_pins.csn_pin != 100)
-  {
-    gpio_put(pico_pins.csn_pin, HIGH);
-  }
 
-  return;
-}
 
-void csn_put_low(void) {
+void csn_put_high(uint8_t csn) {
 
-  if (pico_pins.csn_pin != 100)
-  {
-    gpio_put(pico_pins.csn_pin, LOW);
-  }
+  gpio_put(csn, HIGH);
 
   return;
 }
 
-void ce_put_high(void) {
+void csn_put_low(uint8_t csn) {
 
-  if (pico_pins.ce_pin != 100)
-  {
-    gpio_put(pico_pins.ce_pin, HIGH);
-  }
+  gpio_put(csn, LOW);
 
   return;
 }
 
-void ce_put_low(void) {
+void ce_put_high(uint8_t ce) {
 
-  if (pico_pins.ce_pin != 100)
-  {
-    gpio_put(pico_pins.ce_pin, LOW);
-  }
+  gpio_put(ce, HIGH);
 
   return;
 }
 
-pico_pins_t* pin_manager_init_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin) {
+void ce_put_low(uint8_t ce) {
 
-  // set pico_pins GPIO values
-  pico_pins = (pico_pins_t){ 
-    .cipo_pin = cipo_pin, 
-    .copi_pin = copi_pin, 
-    .csn_pin = csn_pin, 
-    .sck_pin = sck_pin, 
-    .ce_pin = ce_pin 
+  gpio_put(ce, LOW);
+
+  return;
+}
+
+
+
+static fn_status_t pin_manager_validate(uint8_t copi, uint8_t cipo, uint8_t sck) {
+
+  typedef enum pin_min_e { CIPO_MIN, SCK_MIN = 2, COPI_MIN } pin_min_t;
+  typedef enum pin_max_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX } pin_max_t;
+
+  typedef struct validate_pin_e
+  {
+    uint8_t spi_pin;
+    pin_min_t min;
+    pin_max_t max;
+  } validate_pin_t;
+
+  validate_pin_t spi_pins[3] = {
+    (validate_pin_t){ .spi_pin = cipo, .min = CIPO_MIN, .max = CIPO_MAX },
+    (validate_pin_t){ .spi_pin = copi, .min = COPI_MIN, .max = COPI_MAX },
+    (validate_pin_t){ .spi_pin = sck,  .min = SCK_MIN,  .max = SCK_MAX },
   };
 
-  // Set GPIO function as SPI for SCK, COPI & CIPO
-  gpio_set_function(pico_pins.sck_pin, GPIO_FUNC_SPI);
-  gpio_set_function(pico_pins.copi_pin, GPIO_FUNC_SPI);
-  gpio_set_function(pico_pins.cipo_pin, GPIO_FUNC_SPI);
+  uint8_t valid_pins = 0;
 
-  // Initialise CE & CSN
-  gpio_init(pico_pins.ce_pin);
-  gpio_init(pico_pins.csn_pin);
+  for (size_t i = 0; i < ALL_PINS; i++)
+  {
+    for (size_t pin = spi_pins[i].min; pin <= spi_pins[i].max; pin += 4)
+    {
+      if (spi_pins[i].spi_pin == pin) { valid_pins++; }
+    }
+  }
 
-
-  // Set direction for CE & CSN
-  gpio_set_dir(pico_pins.ce_pin, GPIO_OUT);
-  gpio_set_dir(pico_pins.csn_pin, GPIO_OUT);
+  fn_status_t status = (valid_pins == 3) ? PIN_MNGR_OK : ERROR;
   
-  return &pico_pins;
+  return status;
+}
+
+
+fn_status_t pin_manager_configure(uint8_t copi, uint8_t cipo, uint8_t sck, uint8_t csn, uint8_t ce) {
+
+  fn_status_t status = pin_manager_validate(copi, cipo, sck);
+
+  if (status)
+  {
+    // set GPIO function as SPI for SCK, COPI & CIPO
+    gpio_set_function(sck, GPIO_FUNC_SPI);
+    gpio_set_function(copi, GPIO_FUNC_SPI);
+    gpio_set_function(cipo, GPIO_FUNC_SPI);
+
+    // initialise CE & CSN
+    gpio_init(ce);
+    gpio_init(csn);
+
+    // set direction for CE & CSN
+    gpio_set_dir(ce, GPIO_OUT);
+    gpio_set_dir(csn, GPIO_OUT);
+  }
+  
+  return status;
 };

@@ -19,20 +19,11 @@
 #ifndef PIN_MANAGER_H
 #define PIN_MANAGER_H
 
+#include "error_manager.h"
 #include "pico/types.h"
 
 // Represents GPIO LOW or HIGH (0 or 1)
 typedef enum pin_direction_e { LOW, HIGH } pin_direction_t;
-
-// stores SPI instance, baudrate and GPIO pin values
-typedef struct pico_pins_e
-{
-  uint8_t cipo_pin; // CIPO GPIO pin
-  uint8_t copi_pin; // COPI GPIO pin
-  uint8_t csn_pin; // CSN GPIO pin
-  uint8_t sck_pin; // SCK GPIO pin
-  uint8_t ce_pin; // CE GPIO pin
-} pico_pins_t;
 
 
 /**
@@ -40,7 +31,8 @@ typedef struct pico_pins_e
  * 
  * @return  
  */
-pico_pins_t* pin_manager_init_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t csn_pin, uint8_t sck_pin, uint8_t ce_pin);
+fn_status_t pin_manager_configure(uint8_t copi, uint8_t cipo, uint8_t sck, uint8_t csn, uint8_t ce);
+
 
 /**
  * Drive CSN pin HIGH.
@@ -48,7 +40,7 @@ pico_pins_t* pin_manager_init_pins(uint8_t cipo_pin, uint8_t copi_pin, uint8_t c
  * 
  * @param pin pico_pins_t * pin
  */
-void csn_put_high(void);
+void csn_put_high(uint8_t csn);
 
 /**
  * Drive CSN pin LOW.
@@ -56,7 +48,7 @@ void csn_put_high(void);
  * 
  * @param pin pico_pins_t * pin
  */
-void csn_put_low(void);
+void csn_put_low(uint8_t csn);
 
 /**
  * Drive CE pin HIGH.
@@ -64,7 +56,7 @@ void csn_put_low(void);
  * 
  * @param pin pico_pins_t * pin
  */
-void ce_put_low(void);
+void ce_put_low(uint8_t ce);
 
 /**
  * Drive CE pin LOW.
@@ -72,6 +64,6 @@ void ce_put_low(void);
  * 
  * @param pin pico_pins_t * pin
  */
-void ce_put_high(void);
+void ce_put_high(uint8_t ce);
 
 #endif // PIN_MANAGER_H
