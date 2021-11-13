@@ -17,9 +17,23 @@
 
 #include "pin_manager.h"
 #include "spi_manager.h"
+
 #include "nrf24_driver.h"
 
+typedef enum device_mode_e
+{
+  STANDBY_I,
+  STANDBY_II,
+  TX_MODE,
+  RX_MODE
+} device_mode_t;
 
+/**
+ * A global struct, which encapsulates pin_manager_t and spi_manager_t 
+ * objects, which hold data relevant to the pin_manager, spi_manager 
+ * utility functions. The nrf_manager_t holds register configuration
+ * settings for the NRF24L01.
+ */
 typedef struct nrf_driver_s
 {
   // GPIO pin numbers
@@ -31,17 +45,14 @@ typedef struct nrf_driver_s
   // NRF register configuration
   nrf_manager_t user_config;
 
-  // stores packet payload width
-  uint8_t payload_width;
-
   // address width as number of bytes
   uint8_t address_width_bytes;
 
-  // 'S' (standby), 'T' (TX Mode), 'R' (RX Mode)
-  uint8_t mode;
+  // STANDBY_I, STANDBY_II, TX_MODE, RX_MODE
+  device_mode_t mode;
 
   // RX_ADDR_P0 register cache flag
-  uint8_t is_rx_addr_p0;
+  bool is_rx_addr_p0;
 
   // RX_ADDR_P0 register value cache
   uint8_t rx_addr_p0[5];
@@ -58,13 +69,16 @@ nrf_driver_t nrf_driver = {
   .user_spi.baudrate = 6000000,
   .user_spi.instance = spi0,
   .user_config.address_width = AW_5_BYTES,
+  .user_config.dyn_payloads = DYNPD_DISABLE,
   .user_config.retr_delay = ARD_250US,
   .user_config.retr_count = ARC_10RT,
   .user_config.data_rate = RF_DR_1MBPS,
   .user_config.power = RF_PWR_0DBM,
   .user_config.channel = 110,
-  .address_width_bytes = FIVE_BYTES,
-  .mode = 'S'
+  .address_width_bytes = 5,
+  .is_rx_addr_p0 = false,
+  .rx_addr_p0 = { 0x00, 0x00, 0x00, 0x00, 0x00 },
+  .mode = STANDBY_I
 };
 
 
@@ -77,6 +91,10 @@ static fn_status_t w_register(register_map_t reg, const void *buffer, size_t buf
 static uint8_t r_register_byte(register_map_t reg);
 
 static fn_status_irq_t check_status_irq(uint8_t *rx_p_no);
+
+static void flush_tx_fifo(void);
+
+static void flush_rx_fifo(void);
 
 
 /***********************************
@@ -202,39 +220,92 @@ fn_status_t nrf_driver_initialise(nrf_manager_t *user_config) {
   if (user_config != NULL)
   {
     *config = *user_config;
+
+    switch (config->address_width)
+    {
+      case AW_3_BYTES:
+        nrf_driver.address_width_bytes = 3;
+      break;
+
+      case AW_4_BYTES:
+        nrf_driver.address_width_bytes = 4;
+      break;
+
+      case AW_5_BYTES:
+        nrf_driver.address_width_bytes = 5;
+      break;
+      
+      default:
+        nrf_driver.address_width_bytes = 5;
+      break;
+    }
   }
 
+
   // address width in bytes = address_width_t value + 2 (3, 4 or 5)
-  nrf_driver.address_width_bytes = config->address_width + 2;
+  nrf_driver.address_width_bytes = nrf_driver.user_config.address_width + 2;
 
-  typedef struct w_register_s
-  {
-    register_map_t reg;
-    uint8_t buffer[ONE_BYTE];
-  } w_register_t;
+  // register address and value to write
+  typedef struct w_register_s { register_map_t reg; uint8_t buf[1]; } w_register_t;
 
-  w_register_t register_list[7] = {
-    (w_register_t){ .reg = CONFIG,     .buffer = { 0x0E } },
-    (w_register_t){ .reg = EN_AA,      .buffer = { ENAA_ALL } },
-    (w_register_t){ .reg = SETUP_AW,   .buffer = { config->address_width } },
-    (w_register_t){ .reg = SETUP_RETR, .buffer = { config->retr_count | config->retr_delay } },
-    (w_register_t){ .reg = RF_CH,      .buffer = { config->channel} },
-    (w_register_t){ .reg = RF_SETUP,   .buffer = { config->data_rate | config->power } },
-    (w_register_t){ .reg = STATUS,     .buffer = { STATUS_INTERRUPT_MASK } },
+  // array of register addresses and values
+  w_register_t register_list[9] = {
+    (w_register_t){ 
+      .reg = CONFIG,
+      .buf = { 0x0E } 
+    },
+    (w_register_t){ 
+      .reg = EN_AA, // enable auto-acknowledge
+      .buf = { ENAA_ALL }
+    },
+    (w_register_t){ 
+      .reg = SETUP_AW, // set address width
+      .buf = { config->address_width } 
+    },
+    (w_register_t){ 
+      .reg = SETUP_RETR, // retransmission settings
+      .buf = { config->retr_count | config->retr_delay } 
+    },
+    (w_register_t){ 
+      .reg = RF_CH, // set RF channel
+      .buf = { config->channel} 
+    },
+    (w_register_t){ 
+      .reg = RF_SETUP, // RF data rate & TX power level  
+      .buf = { config->data_rate | config->power } 
+    },
+    (w_register_t){ 
+      .reg = FEATURE, // enable/disable dynamic payloads in FEATURE register
+      .buf = { config->dyn_payloads ? SET_BIT << FEATURE_EN_DPL : 0x00 } 
+    },
+    (w_register_t){ 
+      .reg = DYNPD, // enable/disable dynamic payloads
+      .buf = { config->dyn_payloads } 
+    },
+    (w_register_t){ 
+      .reg = STATUS, // clear STATUS register interrupt bits
+      .buf = { STATUS_INTERRUPT_MASK } 
+    },
   };
-
+  
   fn_status_t status;
 
-  for (size_t i = 0; i < 7; i++)
+  // write the buffer to each register address
+  for (size_t i = 0; i < 8; i++)
   {
-    status = w_register(register_list[i].reg, register_list[i].buffer, ONE_BYTE);
+    status = w_register(register_list[i].reg, register_list[i].buf, ONE_BYTE);
 
-    if (status == ERROR) { break; }
+    if (status == ERROR) { break; } // break on error
   }
 
   sleep_ms(2); // Crystal oscillator start up delay
 
-  spi_manager_deinit_spi(spi->instance); // deinitialise SPI for function duration
+  // flush RX and TX FIFOs
+  flush_tx_fifo();
+  flush_rx_fifo();
+
+  // deinitialise SPI at function end
+  spi_manager_deinit_spi(spi->instance); 
 
   return status;
 }
@@ -309,15 +380,13 @@ fn_status_t nrf_driver_rx_destination(data_pipe_t data_pipe, const uint8_t *buff
     RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5
   };
 
-  size_t buffer_size = nrf_driver.address_width_bytes;
-
   if (data_pipe == DATA_PIPE_0)
   {
     // set RX_ADDR_P0 cache flag
     nrf_driver.is_rx_addr_p0 = true;
 
     // cache RX_ADDR_P0 address
-    for (size_t i = 0; i < buffer_size; i++)
+    for (size_t i = 0; i < nrf_driver.address_width_bytes; i++)
     { 
       nrf_driver.rx_addr_p0[i] = buffer[i];
     }
@@ -329,11 +398,11 @@ fn_status_t nrf_driver_rx_destination(data_pipe_t data_pipe, const uint8_t *buff
   // if DATA_PIPE_0 - DATA_PIPE_5
   if (data_pipe < ALL_DATA_PIPES)
   {
-    size_t buffer_size = nrf_driver.address_width_bytes;
+    // size_t buffer_size = nrf_driver.address_width_bytes;
 
     if (data_pipe < DATA_PIPE_2) // DATA_PIPE_0 & DATA_PIPE_1 hold full address width
     {
-      status = w_register(registers[data_pipe], buffer, buffer_size);
+      status = w_register(registers[data_pipe], buffer, nrf_driver.address_width_bytes);
 
     } else {  // DATA_PIPE_2 - DATA_PIPE_5 hold 1 byte + 4 MSB of DATA_PIPE_1
 
@@ -411,6 +480,82 @@ fn_status_t nrf_driver_payload_size(data_pipe_t data_pipe, size_t size) {
 
 
 /**
+ * Enables dynamic payloads, if not already disabled.
+ * 
+ * @return SPI_MNGR_OK (2), ERROR (0)
+ */
+fn_status_t nrf_driver_dyn_payloads_enable(void) {
+
+  spi_manager_t *spi = &(nrf_driver.user_spi);
+
+  spi_manager_init_spi(spi->instance, spi->baudrate);
+  
+  nrf_manager_t *config = &(nrf_driver.user_config);
+
+  fn_status_t status = SPI_MNGR_OK;
+
+  if (config->dyn_payloads == DYNPD_DISABLE)
+  {
+    uint8_t feature = r_register_byte(FEATURE);
+
+    feature |= SET_BIT << FEATURE_EN_DPL;
+
+    status = w_register(FEATURE, &feature, ONE_BYTE);
+
+    config->dyn_payloads = (status) ? DYNPD_ENABLE : DYNPD_DISABLE;
+
+    if (status == SPI_MNGR_OK)
+    {
+      status = w_register(DYNPD, (uint8_t[]){DYNPD_ENABLE}, ONE_BYTE);
+    }
+  }
+
+  spi_manager_deinit_spi(spi->instance);
+
+  return status;
+}
+
+
+/**
+ * Disables dynamic payloads, if not already disabled.
+ * 
+ * @return SPI_MNGR_OK (2), NRF_MNGR_OK (3), ERROR (0)
+ */
+fn_status_t nrf_driver_dyn_payloads_disable(void) {
+
+  spi_manager_t *spi = &(nrf_driver.user_spi);
+
+  // initialise SPI for function duration
+  spi_manager_init_spi(spi->instance, spi->baudrate);
+  
+  nrf_manager_t *config = &(nrf_driver.user_config);
+
+  fn_status_t status = NRF_MNGR_OK;
+
+  if (config->dyn_payloads == DYNPD_ENABLE)
+  {
+    uint8_t feature = r_register_byte(FEATURE);
+
+    // clear EN_DPL (bit 2) in FEATURE register
+    feature &= ~(SET_BIT << FEATURE_EN_DPL);
+
+    status = w_register(FEATURE, &feature, ONE_BYTE);
+
+    config->dyn_payloads = (status) ? DYNPD_DISABLE : DYNPD_ENABLE;
+
+    if (status == SPI_MNGR_OK)
+    {
+      status = w_register(DYNPD, (uint8_t[]){DYNPD_DISABLE}, ONE_BYTE);
+    }
+  }
+
+  // deinitialise SPI at function end
+  spi_manager_deinit_spi(spi->instance);
+
+  return status;
+}
+
+/**
  * Set the RF channel. Each device must be on the same 
  * channel in order to communicate.
  * 
@@ -420,7 +565,7 @@ fn_status_t nrf_driver_payload_size(data_pipe_t data_pipe, size_t size) {
  */
 fn_status_t nrf_driver_rf_channel(uint8_t channel) {
 
-  fn_status_t status = ((channel >= 1) && (channel <= 125)) ? NRF_MNGR_OK : ERROR;
+  fn_status_t status = ((channel >= 2) && (channel <= 125)) ? NRF_MNGR_OK : ERROR;
 
   if (status == NRF_MNGR_OK)
   {
@@ -578,6 +723,8 @@ fn_status_t nrf_driver_send_packet(const void *tx_packet, size_t size) {
   sleep_us(60); // pulse CE high for 60us to transmit
   ce_put_low(nrf_driver.user_pins.ce);
 
+  nrf_driver.mode = TX_MODE;
+
   fn_status_irq_t status_irq = NONE_ASSERTED;
 
   /**
@@ -589,6 +736,8 @@ fn_status_t nrf_driver_send_packet(const void *tx_packet, size_t size) {
   {
     status_irq = check_status_irq(NULL);
   }
+
+  nrf_driver.mode = STANDBY_I;
   
   spi_manager_deinit_spi(spi->instance);
 
@@ -618,35 +767,63 @@ fn_status_t nrf_driver_read_packet(void *rx_packet, size_t size) {
 
   spi_manager_t *spi = &(nrf_driver.user_spi);
 
+  // initialise SPI at function start
   spi_manager_init_spi(spi->instance, spi->baudrate);
 
-  // fn_status_t status = (size >= nrf_driver.payload_width) ? NRF_MNGR_OK : ERROR;
+  fn_status_t status = SPI_MNGR_OK;
 
-  // cast void *tx_packet to uint8_t pointer
-  uint8_t *rx_packet_ptr = (uint8_t *)rx_packet;
+  /**
+   * if dynamic payloads are enabled, read the payload width
+   * via the R_RX_PL_WID command and check it is not greater
+   * than 32 (max payload size). If it is, the packet is 
+   * corrupted and RX FIFO is flushed. 
+   */
+  if (nrf_driver.user_config.dyn_payloads)
+  {
+    uint8_t tx_buffer[2] = { R_RX_PL_WID, NOP };
+    uint8_t rx_buffer[2];
 
-  // W_TX_PAYLOAD command + packet_size
-  size_t total_size = size + 1;
+    csn_put_low(nrf_driver.user_pins.csn); // drive CSN pin LOW
+    status = spi_manager_transfer(spi->instance, tx_buffer, rx_buffer, TWO_BYTES);
+    csn_put_high(nrf_driver.user_pins.csn); // drive CSN pin HIGH
 
-  uint8_t tx_buffer[total_size]; // SPI transfer TX buffer
-  uint8_t rx_buffer[total_size]; // SPI transfer RX buffer
-
-  // put R_RX_PAYLOAD command into first index of tx_buffer
-  *(tx_buffer + 0) = R_RX_PAYLOAD;
-
-  // store byte(s) in tx_packet (tx_packet_ptr) into tx_buffer[]
-  for (size_t i = 1; i < total_size; i++) { *(tx_buffer + i) = NOP; }
-  
-  csn_put_low(nrf_driver.user_pins.csn); // drive CSN pin LOW
-  fn_status_t status = spi_manager_transfer(spi->instance, tx_buffer, rx_buffer, total_size);
-  csn_put_high(nrf_driver.user_pins.csn); // drive CSN pin HIGH
-  
-  // skip rx_buffer[0] (STATUS value) and transfer remaining values to buffer
-  for (size_t i = 1; i < total_size; i++)
-  { 
-    *(rx_packet_ptr++) = *(rx_buffer + i); 
+    // rx_buffer[0] holds STatus REGISTER value
+    if (rx_buffer[1] > MAX_BYTES) 
+    {
+      flush_rx_fifo();
+      status = ERROR;
+    }
   }
 
+  if (status)
+  {
+    // cast void *rx_packet to uint8_t pointer
+    uint8_t *rx_packet_ptr = (uint8_t *)rx_packet;
+
+    // W_TX_PAYLOAD command + packet_size
+    size_t total_size = size + 1;
+
+    uint8_t tx_buffer[total_size]; // SPI transfer TX buffer
+    uint8_t rx_buffer[total_size]; // SPI transfer RX buffer
+
+    // put R_RX_PAYLOAD command into first index of tx_buffer
+    tx_buffer[0] = R_RX_PAYLOAD;
+
+    // store byte(s) in tx_packet (tx_packet_ptr) into tx_buffer[]
+    for (size_t i = 1; i < total_size; i++) { *(tx_buffer + i) = NOP; }
+    
+    csn_put_low(nrf_driver.user_pins.csn); // drive CSN pin LOW
+    fn_status_t status = spi_manager_transfer(spi->instance, tx_buffer, rx_buffer, total_size);
+    csn_put_high(nrf_driver.user_pins.csn); // drive CSN pin HIGH
+    
+    // skip rx_buffer[0] (STATUS value) and transfer remaining values to buffer
+    for (size_t i = 0; i < size; i++)
+    { 
+      *(rx_packet_ptr + i) = rx_buffer[i + 1]; 
+    }
+  }
+
+  // deinitialise SPI at function end
   spi_manager_deinit_spi(spi->instance);
 
   return status;
@@ -682,10 +859,9 @@ fn_status_t nrf_driver_is_packet(uint8_t *rx_p_no) {
 
 
 /**
- * Puts the NRF24L01 into TX Mode.
- * 
- * 1. Read CONFIG register value and check PRIM_RX bit. If 
- * PRIM_RX is set, reset it leave and drive CE pin LOW.
+ * Puts the NRF24L01 into Standby-I Mode. Resets the CONFIG 
+ * register PRIM_RX bit value, in preparation for entering
+ * TX Mode and drives CE pin LOW.
  * 
  * NOTE: State diagram in the datasheet (6.1.1) highlights
  * conditions for entering RX and TX operating modes. One 
@@ -696,35 +872,34 @@ fn_status_t nrf_driver_is_packet(uint8_t *rx_p_no) {
  * 
  * @return SPI_MNGR_OK (2), ERROR (0)
  */
-fn_status_t nrf_driver_tx_mode(void) {
+fn_status_t nrf_driver_standby_mode(void) {
 
+  // initialise SPI at function start
   spi_manager_t *spi = &(nrf_driver.user_spi);
 
   spi_manager_init_spi(spi->instance, spi->baudrate);
 
-  // read CONFIG register value
-  uint8_t config = r_register_byte(CONFIG);
-
-  // is CONFIG register PRIM_RX bit set?
-  uint8_t prim_rx = (config >> CONFIG_PRIM_RX) & SET_BIT;
-
   fn_status_t status = NRF_MNGR_OK;
 
-  // PRIM_RX bit should be unset for TX Mode
-  if (prim_rx == SET_BIT)
+  if (nrf_driver.mode == RX_MODE)
   {
-    config &= ~(SET_BIT << CONFIG_PRIM_RX); // unset PRIM_RX bit
+    // read CONFIG register value
+    uint8_t config = r_register_byte(CONFIG);
 
-    status = w_register(CONFIG, &config, ONE_BYTE);
+    config &= ~(SET_BIT << CONFIG_PRIM_RX);
 
-    // NRF24L01+ enters TX Mode after 130us
+    w_register(CONFIG, &config, ONE_BYTE);
+
+    // Drive CE LOW
+    ce_put_low(nrf_driver.user_pins.ce);
+
+    // NRF24L01+ enters Standby-I mode after 130μS
     sleep_us(130);
 
-    nrf_driver.mode = 'T'; // reflect TX Mode in nrf_status
+    nrf_driver.mode = STANDBY_I;
   }
 
-  ce_put_low(nrf_driver.user_pins.ce); // Drive CE LOW
-
+  // deinitialise SPI at function end
   spi_manager_deinit_spi(spi->instance);
 
   return status;
@@ -732,12 +907,8 @@ fn_status_t nrf_driver_tx_mode(void) {
 
 
 /**
- * Puts the NRF24L01 into RX Mode.
- * 
- * 1. Read CONFIG register value and the value of PRIM_RX bit. 
- * If PRIM_RX is already set, leave and drive CE pin HIGH. If 
- * not already set, set the PRIM_RX bit and write to CONFIG
- * register and drive CE pin HIGH.
+ * Puts the NRF24L01 into RX Mode. Sets the CONFIG register 
+ * PRIM_RX bit value and drive CE pin HIGH.
  * 
  * NOTE: State diagram in the datasheet (6.1.1) highlights
  * conditions for entering Rx and Tx operating modes. One 
@@ -748,7 +919,7 @@ fn_status_t nrf_driver_tx_mode(void) {
  * 
  * @return SPI_MNGR_OK (2), ERROR (0)
  */
-fn_status_t nrf_driver_rx_mode(void) {
+fn_status_t nrf_driver_receiver_mode(void) {
   
   spi_manager_t *spi = &(nrf_driver.user_spi);
 
@@ -772,21 +943,21 @@ fn_status_t nrf_driver_rx_mode(void) {
     status = w_register(CONFIG, &config, ONE_BYTE);
   }
 
-  size_t buffer_size = nrf_driver.address_width_bytes;
+  // size_t buffer_size = nrf_driver.address_width_bytes;
 
   // restore the RX_ADDR_P0 address, if exists
   if (nrf_driver.is_rx_addr_p0)
   {
-    w_register(RX_ADDR_P0, nrf_driver.rx_addr_p0, buffer_size);
+    w_register(RX_ADDR_P0, nrf_driver.rx_addr_p0, nrf_driver.address_width_bytes);
   }
 
   // Drive CE HIGH
   ce_put_high(nrf_driver.user_pins.ce);
 
-  // NRF24L01+ enters RX Mode after 130us
+  // NRF24L01+ enters RX Mode after 130μS
   sleep_us(130);
 
-  nrf_driver.mode = 'R'; // reflect RX Mode in nrf_status
+  nrf_driver.mode = RX_MODE; // reflect RX Mode in nrf_status
 
   spi_manager_deinit_spi(spi->instance);
 
@@ -795,22 +966,10 @@ fn_status_t nrf_driver_rx_mode(void) {
 
 
 /**
- * ...
- * 
- * @param config nrf_manager_t struct
- * 
- * @return NRF_MNGR_OK (3), ERROR (0)
- */
-fn_status_t nrf_driver_w_config(nrf_manager_t *config) {
-
-  fn_status_t status = NRF_MNGR_OK;
-
-  return status;
-}
-
-
-/**
- * ...
+ * Assign public nrf_driver function addresses to
+ * the coressponding nrf_client_t function pointers,
+ * providing access to these functions through the 
+ * nrf_client_t object.
  * 
  * @param client nrf_client_t struct
  * 
@@ -825,6 +984,8 @@ fn_status_t nrf_driver_create_client(nrf_client_t *client) {
   client->tx_destination = nrf_driver_tx_destination;
 
   client->payload_size = nrf_driver_payload_size;
+  client->dyn_payloads_enable = nrf_driver_dyn_payloads_enable;
+  client->dyn_payloads_disable = nrf_driver_dyn_payloads_disable;
 
   client->auto_retransmission = nrf_driver_auto_retransmission;
 
@@ -836,8 +997,8 @@ fn_status_t nrf_driver_create_client(nrf_client_t *client) {
   client->read_packet = nrf_driver_read_packet;
   client->is_packet = nrf_driver_is_packet;
 
-  client->tx_mode = nrf_driver_tx_mode;
-  client->rx_mode = nrf_driver_rx_mode;
+  client->standby_mode = nrf_driver_standby_mode;
+  client->receiver_mode = nrf_driver_receiver_mode;
 
   return NRF_MNGR_OK;
 }
@@ -853,27 +1014,27 @@ fn_status_t nrf_driver_create_client(nrf_client_t *client) {
  * 
  * @param reg register to write the buffer to
  * @param buffer value to be held in the register
- * @param buffer_size size of the buffer
+ * @param size size of the buffer
  * 
  * @return SPI_MNGR_OK (2), ERROR (0)
  */
-static fn_status_t w_register(register_map_t reg, const void *buffer, size_t buffer_size) {
+static fn_status_t w_register(register_map_t reg, const void *buffer, size_t size) {
 
   uint8_t *buffer_ptr = (uint8_t *)buffer;
 
   // buffer_size + 1 (register address)
-  size_t total_size = buffer_size + 1;
-  
-  // ensure 3 MSB are [001] (write to the register)
-  reg = (REGISTER_MASK & reg | W_REGISTER);
+  size_t total_size = size + 1;
 
   uint8_t tx_buffer[total_size]; // SPI Tx buffer
   uint8_t rx_buffer[total_size]; // SPI Rx buffer
 
-  *(tx_buffer + 0) = reg; // store register in tx_buffer[0]
+  // ensure 3 MSB are [001] (write to the register)
+  reg = (REGISTER_MASK & reg | W_REGISTER);
+
+  tx_buffer[0] = reg; // store register in tx_buffer[0]
 
   // store byte(s) in buffer (buffer_ptr) into tx_buffer[total_size]
-  for (size_t i = 1; i < total_size; i++) { *(tx_buffer + i) = *(buffer_ptr++); }
+  for (size_t i = 0; i < size; i++) { tx_buffer[i + 1] = *(buffer_ptr + i); }
 
   spi_manager_t *spi = &(nrf_driver.user_spi);
   

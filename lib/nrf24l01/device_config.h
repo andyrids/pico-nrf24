@@ -107,7 +107,8 @@ typedef enum register_map_e
   RX_PW_P4 = 0x15, // Rx payload bytes in data pipe 4
   RX_PW_P5 = 0x16, // Rx payload bytes in data pipe 5
   FIFO_STATUS = 0x17, // FIFO Status register
-  DYNPD = 0x1C // Enable dynamic payload length
+  DYNPD = 0x1C, // Enable dynamic payload length
+  FEATURE = 0x1D // Feature register
 } register_map_t;
 
 
@@ -150,38 +151,6 @@ typedef enum config_bit_e
 } config_bit_t;
 
 
-/**
- * EN_AA register (0x01):
- * 
- * Enhanced ShockBurst Auto Acknowledgment (AA) setting
- * on data pipes 0 - 5:- 1: enable, 0: disable
- * 
- * NOTE: By default, AA is enabled for all data pipes. A primary 
- * transmitter (PTX) only needs AA enabled on data pipe 0. Disabling 
- * AA on data pipes 1 - 5 isn't necessary, but illustrates how to use 
- * and write to the EN_AA register.
- * 
- * Mnemonic    | Bit | Set | Comment
- * (reserved)     7     0    Only '0' allowed
- * (reserved)     6     0    Only '0' allowed
- * ENAA_P5        5     0    Enable auto acknowledgement data pipe 5
- * ENAA_P4        4     0    Enable auto acknowledgement data pipe 4
- * ENAA_P3        3     0    Enable auto acknowledgement data pipe 3
- * ENAA_P2        2     0    Enable auto acknowledgement data pipe 2
- * ENAA_P1        1     1    Enable auto acknowledgement data pipe 1
- * ENAA_P0        0     1    Enable auto acknowledgement data pipe 0
- **/
-typedef enum en_aa_bit_e
-{
-  EN_AA_ENAA_P0, // Bit 0
-  EN_AA_ENAA_P1, // Bit 1
-  EN_AA_ENAA_P2, // Bit 2
-  EN_AA_ENAA_P3, // Bit 3
-  EN_AA_ENAA_P4, // Bit 4
-  EN_AA_ENAA_P5, // Bit 5
-  EN_AA_RESERVED_1, // Bit 6
-  EN_AA_RESERVED_2, // Bit 7
-} en_aa_bit_t;
 
 
 /**
@@ -311,129 +280,30 @@ typedef enum fifo_status_bit_e
 } fifo_status_bit_t;
 
 
-// EN_RXADDR register bit mnemonics
-typedef enum en_rxaddr_bit_e
+typedef enum feature_bit_e
 {
-  EN_RXADDR_ERX_P0,
-  EN_RXADDR_ERX_P1,
-  EN_RXADDR_ERX_P2,
-  EN_RXADDR_ERX_P3,
-  EN_RXADDR_ERX_P4,
-  EN_RXADDR_ERX_P5,
-} en_rxaddr_bit_t;
-
-
-typedef enum register_bit_e
-{
-  BIT_0,
-  BIT_1,
-  BIT_2,
-  BIT_3,
-  BIT_4,
-  BIT_5,
-  BIT_6,
-  BIT_7,
-} register_bit_t;
+  // Enables the W_TX_PAYLOAD_NOACK command
+  FEATURE_EN_DYN_ACK,
+  // Enables Payload with ACK
+  FEATURE_EN_ACK_PAY,
+  // Enables Dynamic Payload Length
+  FEATURE_EN_DPL,
+  // reserved
+  FEATURE_RESERVED,
+} feature_bit_t;
 
 
 // EN_AA register enable AA settings
 typedef enum en_auto_ack_e
 {
   ENAA_NONE = 0x00,
-  ENAA_P0 = (0x01 << EN_AA_ENAA_P0),
-  ENAA_P1 = (0x01 << EN_AA_ENAA_P1),
-  ENAA_P2 = (0x01 << EN_AA_ENAA_P2),
-  ENAA_P3 = (0x01 << EN_AA_ENAA_P3),
-  ENAA_P4 = (0x01 << EN_AA_ENAA_P4),
-  ENAA_P5 = (0x01 << EN_AA_ENAA_P5),
+  ENAA_P0 = (0x01 << 0),
+  ENAA_P1 = (0x01 << 1),
+  ENAA_P2 = (0x01 << 2),
+  ENAA_P3 = (0x01 << 3),
+  ENAA_P4 = (0x01 << 4),
+  ENAA_P5 = (0x01 << 5),
   ENAA_ALL = 0x3F
 } en_auto_ack_t;
-
-
-// EN_RXADDR enable RX address settings
-typedef enum en_rx_addr_e
-{
-  ERX_P0 = (0x01 << EN_RXADDR_ERX_P0),
-  ERX_P1 = (0x01 << EN_RXADDR_ERX_P1),
-  ERX_P2 = (0x01 << EN_RXADDR_ERX_P2),
-  ERX_P3 = (0x01 << EN_RXADDR_ERX_P3),
-  ERX_P4 = (0x01 << EN_RXADDR_ERX_P4),
-  ERX_P5 = (0x01 << EN_RXADDR_ERX_P5),
-  ERX_ALL = 0x3F
-} en_rx_addr_t;
-
-
-// SETUP_AW register address width (AW) settings
-typedef enum address_width_e
-{
-  AW_3_BYTES = 1, // 3 Byte address width
-  AW_4_BYTES = 2, // 4 Byte address width
-  AW_5_BYTES = 3 // 5 Byte address width
-} address_width_t;
-
-
-// SETUP_RETR register Automatic Retransmission Delay (ARD) settings
-typedef enum retr_delay_e
-{
-  // Automatic retransmission delay of 250μS
-  ARD_250US = (0x00 << SETUP_RETR_ARD), 
-
-  // Automatic retransmission delay of 500μS
-  ARD_500US = (0x01 << SETUP_RETR_ARD), 
-
-  // Automatic retransmission delay of 750μS
-  ARD_750US = (0x02 << SETUP_RETR_ARD), 
-
-  // Automatic retransmission delay of 1000μS
-  ARD_1000US = (0x03 << SETUP_RETR_ARD) 
-} retr_delay_t;
-
-
-// SETUP_RETR register Automatic Retransmission Count (ARC) settings
-typedef enum retr_count_e 
-{
-  ARC_NONE = (0x00 << SETUP_RETR_ARC), // ARC disabled
-  ARC_1RT = (0x01 << SETUP_RETR_ARC), // ARC of 1
-  ARC_2RT = (0x02 << SETUP_RETR_ARC), // ARC of 2
-  ARC_3RT = (0x03 << SETUP_RETR_ARC), // ARC of 3
-  ARC_4RT = (0x04 << SETUP_RETR_ARC), // ARC of 4
-  ARC_5RT = (0x05 << SETUP_RETR_ARC), // ARC of 5
-  ARC_6RT = (0x06 << SETUP_RETR_ARC), // ARC of 6
-  ARC_7RT = (0x07 << SETUP_RETR_ARC), // ARC of 7
-  ARC_8RT = (0x08 << SETUP_RETR_ARC), // ARC of 8
-  ARC_9RT = (0x09 << SETUP_RETR_ARC), // ARC of 9
-  ARC_10RT = (0x0A << SETUP_RETR_ARC), // ARC of 10
-  ARC_11RT = (0x0B << SETUP_RETR_ARC), // ARC of 11
-  ARC_12RT = (0x0C << SETUP_RETR_ARC), // ARC of 12
-  ARC_13RT = (0x0D << SETUP_RETR_ARC), // ARC of 13
-  ARC_14RT = (0x0E << SETUP_RETR_ARC), // ARC of 14
-  ARC_15RT = (0x0F << SETUP_RETR_ARC) // ARC of 15
-} retr_count_t;
-
-
-// RF_SETUP register Data Rate (DR) settings
-typedef enum rf_data_rate_e
-{
-  RF_DR_1MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 1 Mbps
-  RF_DR_2MBPS   = ((0x00 << RF_SETUP_RF_DR_LOW) | (0x01 << RF_SETUP_RF_DR_HIGH)), // 2 Mbps
-  RF_DR_250KBPS = ((0x01 << RF_SETUP_RF_DR_LOW) | (0x00 << RF_SETUP_RF_DR_HIGH)), // 250 kbps
-} rf_data_rate_t;
-
-
-// RF_SETUP register RF Power (RF_PWR) settings
-typedef enum rf_power_e
-{
-  // -18dBm Tx output power
-  RF_PWR_NEG_18DBM = (0x00 << RF_SETUP_RF_PWR),
-
-  // -12dBm Tx output power
-  RF_PWR_NEG_12DBM = (0x01 << RF_SETUP_RF_PWR),
-
-  // -6dBm Tx output power
-  RF_PWR_NEG_6DBM  = (0x02 << RF_SETUP_RF_PWR),
-
-  // 0dBm Tx output power
-  RF_PWR_0DBM  = (0x03 << RF_SETUP_RF_PWR)
-} rf_power_t;
 
 #endif // DEVICE_CONFIG_h
