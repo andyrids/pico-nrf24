@@ -4,8 +4,7 @@ A work in progress for an NRF24L01 driver for the Raspberry Pi Pico. The driver 
 
 **TODO**:  
 
-- [ ] Further testing & debugging
-- [ ] Implement dynamic payloads
+- [X] Implement dynamic payloads
 - [ ] Implement auto-acknowledgement with payloads
 - [ ] Design optional IRQ pin with ISR implementation
 - [ ] Design optional SPI data transfer using DMA (could be more performant)
@@ -39,8 +38,8 @@ This table shows the available pins for connecting the NRF24L01 SPI pins to each
 ```
 project_folder
 ├ examples <- examples using driver
-├ lib <- libraries folder
-│ ├ CMakeLists.txt <- add subdirectory for library folders in lib
+├ lib
+│ ├ CMakeLists.txt
 │ └ nrf24l01 <- main driver folder
 |   ├ error_manager
 |   ├ pin_manager
@@ -100,7 +99,7 @@ typedef struct pin_manager_s
 } pin_manager_t;
 ```
 
-2- `nrf_manager_t` stores NRF24L01 register configuration settings, which can be used to initialise the device with different settings from the default configuration, or switch a range of configuration settings at any time during a program. Individual settings can also be changed through the driver interface functions (see [Optional Configurations](https://github.com/AndyRids/pico-nrf24#optional-configurations) section).  
+2- `nrf_manager_t` stores NRF24L01 register configuration settings, which can be used to initialise the device with different settings from the default configuration. Individual settings can also be changed through the driver interface functions (see [Optional Configurations](https://github.com/AndyRids/pico-nrf24#optional-configurations) section).  
 
 ```C
 // available through nrf24_driver.h
@@ -111,6 +110,12 @@ typedef struct nrf_manager_s
    * AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
    */
   address_width_t address_width;
+
+  /**
+   * Dynamic payloads feature
+   * DYNPD_ENABLE, DYNPD_DISABLE
+   */
+  dyn_payloads_t dyn_payloads;
 
   /**
    * Auto retransmission delay time
@@ -162,6 +167,12 @@ typedef struct nrf_client_s
   // set payload size for received packets for one specific data pipe or for all
   fn_status_t (*payload_size)(data_pipe_t data_pipe, size_t size);
 
+  // enables dynamic payloads
+  fn_status_t (*dyn_payloads_enable)(void);
+
+  // disables dynamic payloads
+  fn_status_t (*dyn_payloads_disable)(void);
+
   // set packet auto-retransmission delay and count configurations
   fn_status_t (*auto_retransmission)(retr_delay_t delay, retr_count_t count);
 
@@ -184,10 +195,10 @@ typedef struct nrf_client_s
   fn_status_t (*is_packet)(uint8_t *rx_p_no);
 
   // switch NRF24L01 to TX Mode
-  fn_status_t (*tx_mode)(void);
+  fn_status_t (*standby_mode)(void);
 
   // switch NRF24L01 to RX Mode
-  fn_status_t (*rx_mode)(void);
+  fn_status_t (*receiver_mode)(void);
 } nrf_client_t;
 
 /**
@@ -290,6 +301,9 @@ nrf_manager_t my_config = {
   // AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
   .address_width = AW_5_BYTES,
 
+  // DYNPD_DISABLE, DYNPD_ENABLE
+  .dyn_payloads = DYNPD_DISABLE,
+
   // RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
   .data_rate = RF_DR_2MBPS,
 
@@ -307,7 +321,7 @@ nrf_manager_t my_config = {
 my_nrf.initialise(&my_config);
 ```
 
-4- The payload size for received packets can be set through the `payload_size` function, for a specific data pipe or for all data pipes:
+4- The payload size for received packets can be set through the `payload_size` function for a specific data pipe or for all data pipes. The dynamic payload feature can be used instead of setting a static payload size. The `dyn_payloads_enable` function will enable dynamic payloads for all data pipes and `dyn_payloads_disable` will disable this feature: 
 
 ```C
 // available through nrf24_driver.h
@@ -337,13 +351,36 @@ fn_status_t nrf_driver_payload_size(data_pipe_t data_pipe, size_t size);
 
 // set the payload size for all data pipes to 5 bytes
 my_nrf.payload_size(ALL_DATA_PIPES, FIVE_BYTES);
+
+
+
+/**
+ * Enables dynamic payloads, if not already.
+ * 
+ * @return SPI_MNGR_OK (2), NRF_MNGR_OK (3), ERROR (0)
+ */
+fn_status_t nrf_driver_dyn_payloads_enable(void);
+
+
+/**
+ * Disables dynamic payloads, if not already.
+ * 
+ * @return SPI_MNGR_OK (2), NRF_MNGR_OK (3), ERROR (0)
+ */
+fn_status_t nrf_driver_dyn_payloads_disable(void);
+
+// nrf_client_t access to dyn_payloads_enable & dyn_payloads_disable:
+
+my_nrf.dyn_payloads_enable(); // enabled
+
+my_nrf.dyn_payloads_disable(); // disabled
 ```
 
-5- If you alternate between RX Mode and TX Mode, without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`. `rx_destination` sets an address to the specified data pipe.
+5- If you alternate between RX Mode and TX Mode without a dedicated primary transmitter (PTX) and primary receiver (PRX) setup - then the `rx_destination` function should be used before setting the TX address through `tx_destination`. This allows the `rx_destination` function to cache the address for data pipe 0, which would be overwritten when using `tx_destination`. `rx_destination` sets an address to the specified data pipe.
 
 The width of this address is determined by the address width setting. By default an address width of 5 bytes is used. Addresses for the data pipes are set with multiple `rx_destination` calls. Data pipes 2 - 5 use the remaining MSB (address width - 1 byte) of the data pipe 1 address and are set with a 1 byte address. 
 
-If you want to use a 5 byte buffer for data pipes 2 - 5, then the function will automatically set one byte (buffer[0]). This might be useful to visually keep track of the full addresses set to each data pipe when coding. The NRF24L01 has data pipes 0 and 1 enabled by default, but if you set an address for data pipes 2 - 5, they will be enabled automatically, by the function.
+If you want to use a 5 byte buffer for data pipes 2 - 5, then the function will automatically set one byte (buffer[0]). This might be useful to visually keep track of the full addresses set to each data pipe when coding. The NRF24L01 has data pipes 0 and 1 enabled by default, but if you set an address for data pipes 2 - 5, they will be enabled automatically by the function.
 
 ```C
 /**
@@ -416,14 +453,13 @@ my_nrf.tx_destination((uint8_t []){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
 my_nrf.tx_destination((uint8_t[]){0xCA, 0xC7, 0xC7, 0xC7, 0xC7});
 ```  
 
-7- The `tx_mode` and `rx_mode` functions switch the NRF24L01 between TX Mode and RX Mode. Regarding TX Mode, technically the device is only in this mode when the CONFIG register PRIM_RX bit is unset (0) **AND** the CE pin is HIGH for more than 10μs **AND** the TX_FIFO is not empty **AND** then after 130μs have passed. `tx_mode` function will reset the PRIM_RX bit in preparation for TX Mode, but will in fact remain in Standby-I mode (datasheet 6.1.1 State diagram). `send_packet` function will transfer a packet to the TX FIFO (TX FIFO not empty) and will drive the CE pin HIGH, transitioning to TX Mode state and resulting in packet transmission. 
+7- The `standby_mode` and `receiver_mode` functions switch the NRF24L01 between Standby-I mode and RX Mode. Regarding TX Mode, technically the device is only in this mode when the CONFIG register PRIM_RX bit is unset (0) **AND** the CE pin is HIGH for more than 10μs **AND** the TX_FIFO is not empty **AND** then after 130μs have passed. `standby_mode` function will also reset the PRIM_RX bit in preparation for TX Mode. `send_packet` function will transfer a packet to the TX FIFO (TX FIFO not empty) and will drive the CE pin HIGH, transitioning to TX Mode state and resulting in packet transmission. After packet transmission, the CE pin will be LOW with one packet having been transmitted, reverting back to Standby-I mode.
 
 ```C
 /**
- * Puts the NRF24L01 into TX Mode.
- * 
- * 1. Read CONFIG register value and check PRIM_RX bit. If 
- * PRIM_RX is set, reset it leave and drive CE pin LOW.
+ * Puts the NRF24L01 into Standby-I Mode. Resets the CONFIG 
+ * register PRIM_RX bit value, in preparation for entering
+ * TX Mode and drives CE pin LOW.
  * 
  * NOTE: State diagram in the datasheet (6.1.1) highlights
  * conditions for entering RX and TX operating modes. One 
@@ -434,14 +470,11 @@ my_nrf.tx_destination((uint8_t[]){0xCA, 0xC7, 0xC7, 0xC7, 0xC7});
  * 
  * @return SPI_MNGR_OK (2), ERROR (0)
  */
-fn_status_t nrf_driver_tx_mode(void);
+fn_status_t nrf_driver_standby_mode(void);
 
 /**
- * Puts the NRF24L01 into RX Mode.
- * 
- * 1. Read CONFIG register value and the value of PRIM_RX bit. 
- * If PRIM_RX is already set, leave and drive CE pin HIGH. If 
- * not already set, set the PRIM_RX bit and drive CE pin HIGH.
+ * Puts the NRF24L01 into RX Mode. Sets the CONFIG register 
+ * PRIM_RX bit value and drive CE pin HIGH.
  * 
  * NOTE: State diagram in the datasheet (6.1.1) highlights
  * conditions for entering Rx and Tx operating modes. One 
@@ -452,15 +485,15 @@ fn_status_t nrf_driver_tx_mode(void);
  * 
  * @return SPI_MNGR_OK (2), ERROR (0)
  */
-fn_status_t nrf_driver_rx_mode(void);
+fn_status_t nrf_driver_receiver_mode(void);
 
-// nrf_client_t access to nrf_driver_rx_mode & nrf_driver_tx_mode:
+// nrf_client_t access to nrf_driver_standby_mode & nrf_driver_receiver_mode:
 
-// now in TX Mode
-my_nrf.tx_mode(); 
+// now in Standby-I Mode
+my_nrf.standby_mode(); 
 
 // now in RX Mode
-my_nrf.rx_mode(); 
+my_nrf.receiver_mode(); 
 ```  
 
 ### Transmitting A Packet
@@ -468,17 +501,21 @@ my_nrf.rx_mode();
 1- Make sure that:
 
    - Correct TX destination address has been set - `tx_destination`.
-   - Device is in TX Mode - `tx_mode`.  
+   - Dynamic payloads enabled (if enabled on receiver) - `dyn_payloads_enable`.
+   - Device is in Standby-I mode - `standby_mode`.  
 
 ```C
 // matches DATA_PIPE_1 address of recipient in previous example
 my_nrf.tx_destination((uint8_t[]){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
 
-// set to TX Mode
-my_nrf.tx_mode();
+// if receiver has dynamic payloads enabled, then the transmitter must also
+my_nrf.dyn_payloads_enable();
+
+// set to Standby-I mode, in preparation for packet transmission
+my_nrf.standby_mode();
 ```
 
-2- The `send_packet` function transmits a payload to a recipient NRF24L01 and will return SPI_MNGR_OK (2) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of ERROR (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached. The packet size must be set by the recipient device through the `payload_size` function, for its data pipe the transmitting device will send the packet to.
+2- The `send_packet` function transmits a payload to a recipient NRF24L01 and will return SPI_MNGR_OK (2) if the transmission was successful and an auto-acknowledgement was received from the recipient NRF24L01. A return value of ERROR (0) indicates that either, the packet transmission failed, or no auto-acknowledgement was received before max retransmissions count was reached. If the receiver has enabled dynamic payloads then the transmitting device must also, through the `dyn_payloads_enable` function or through an initial nrf_manager_t config passed  to the `initialise` function. If dynamic payloads are not being used, then the receiver need only set the correct static size of the transmitted payloads through the `payload_size` function.
 
 ```C
 /**
@@ -525,7 +562,7 @@ if (my_nrf.send_packet(my_packet, sizeof(my_packet)))
 
    - Correct RX destination address has been set - `rx_destination`.
    - Correct payload size for its data pipes - `payload_size`
-   - Device is in RX Mode - `rx_mode`.   
+   - Device is in RX Mode - `receiver_mode`.   
 
 ```C
 // set DATA_PIPE_0 address
@@ -538,7 +575,7 @@ my_nrf.rx_destination(DATA_PIPE_1, (uint8_t[]){0xC7, 0xC7, 0xC7, 0xC7, 0xC7});
 my_nrf.payload_size(ALL_DATA_PIPES, FIVE_BYTES);
 
 // set to RX Mode
-my_nrf.rx_mode();
+my_nrf.receiver_mode();
 ```
 
 2- The `is_packet` function polls the STATUS register to ascertain if there is a packet in the RX FIFO. The function will return NRF_MNGR_OK (3) if there is a packet available to read, or ERROR (0) if not. If you want to store the data pipe number the packet was addressed to, call the function with the address of a uint8_t variable. If this detail is not relevant to your program, call `is_packet` with a NULL argument.
@@ -612,7 +649,13 @@ if (my_nrf.is_packet(&pipe_no))
 
 Aside from using a `nrf_manager` struct to initialise the NRF24L01 with different configuration settings through the `initialise` function, individual settings can be changed within a program through the following functions:
 
-1- the `rf_channel` function sets the RF channel for the device. Devices must be using the same channel in order to communicate with one another.
+1- the `rf_channel` function sets the RF channel for the device. Devices must be using the same channel in order to communicate with one another. 
+
+According to Nordic support:  
+
+> The nRF24L01+ can only change frequency in standby mode. It takes 130μS from standby to active mode (RX or TX) regardless of whether you change frequency or not...
+
+Therefore, if in RX Mode, switch to Standby-I mode through the `standby_mode` function before calling `rf_channel`.
 
 ```C
 /**
