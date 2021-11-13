@@ -19,13 +19,6 @@
 #include "pin_manager.h"
 #include "hardware/gpio.h"
 
-// represents SPI pins and SPI pin count (ALL_PINS)
-typedef enum spi_pins_e { CIPO, COPI, SCK, ALL_PINS } spi_pins_t;
-
-typedef enum spi_min_range_e { CIPO_MIN = 0, CSN_MIN, SCK_MIN, COPI_MIN } spi_min_range_t; // lowest available SPI GPIO numbers
-typedef enum spi_max_range_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX, CSN_MAX } spi_max_range_t; // highest available SPI GPIO numbers
-
-
 
 void csn_put_high(uint8_t csn) {
 
@@ -56,11 +49,16 @@ void ce_put_low(uint8_t ce) {
 }
 
 
-
+/**
+ * Validates the SPI GPIO pin numbers provided.
+ * 
+ * @param copi COPI pin number
+ * @param cipo CIPO pin number
+ * @param sck SCK pin number
+ * 
+ * @return PIN_MNGR_OK (1), ERROR (0)
+ */
 static fn_status_t pin_manager_validate(uint8_t copi, uint8_t cipo, uint8_t sck) {
-
-  typedef enum pin_min_e { CIPO_MIN, SCK_MIN = 2, COPI_MIN } pin_min_t;
-  typedef enum pin_max_e { SCK_MAX = 26, COPI_MAX, CIPO_MAX } pin_max_t;
 
   typedef struct validate_pin_e
   {
