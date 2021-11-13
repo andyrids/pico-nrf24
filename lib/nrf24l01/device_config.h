@@ -151,8 +151,6 @@ typedef enum config_bit_e
 } config_bit_t;
 
 
-
-
 /**
  * SETUP_AW register (0x03):
  * 

@@ -20,7 +20,6 @@
 #define NRF24L01_H
 
 #include "error_manager.h"
-#include "device_config.h"
 #include "hardware/spi.h"
 
 
@@ -221,29 +220,6 @@ typedef struct nrf_client_s
  * @return NRF_MNGR_OK (3), ERROR (0)
  */
 fn_status_t nrf_driver_create_client(nrf_client_t *client);
-
-
-/**
- * Returns value of the specified register. 
- * 
- * @param reg register address
- * 
- * @return PASS (1), FAIL (0)
- */
-uint8_t debug_address(register_map_t reg);
-
-
-/**
- * Reads a multiple byte value of the specified 
- * register into the buffer.
- * 
- *@param reg register address
- *@param buffer buffer for register value
- *@param buffer_size size of buffer
- * 
- * @return PASS (1), FAIL (0)
- */
-void debug_address_bytes(register_map_t reg, uint8_t *buffer, size_t buffer_size);
 
 
 #endif // NRF24L01_H

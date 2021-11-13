@@ -17,7 +17,7 @@
 
 #include "pin_manager.h"
 #include "spi_manager.h"
-
+#include "device_config.h"
 #include "nrf24_driver.h"
 
 typedef enum device_mode_e
