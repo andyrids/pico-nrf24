@@ -57,19 +57,19 @@ int main(void)
     // AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
     .address_width = AW_5_BYTES,
 
-    // DYNPD_ENABLE, DYNPD_DISABLE
+    // dynamic payloads: DYNPD_ENABLE, DYNPD_DISABLE
     .dyn_payloads = DYNPD_ENABLE,
 
-    // RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
+    // data rate: RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
     .data_rate = RF_DR_2MBPS,
 
     // RF_PWR_NEG_18DBM, RF_PWR_NEG_12DBM, RF_PWR_NEG_6DBM, RF_PWR_0DBM
     .power = RF_PWR_0DBM,
 
-    // ARC_NONE...ARC_15RT
+    // retransmission count: ARC_NONE...ARC_15RT
     .retr_count = ARC_10RT,
 
-    // ARD_250US, ARD_500US, ARD_750US, ARD_1000US
+    // retransmission delay: ARD_250US, ARD_500US, ARD_750US, ARD_1000US
     .retr_delay = ARD_250US 
   };
 
@@ -85,11 +85,8 @@ int main(void)
   // configure GPIO pins and SPI
   my_nrf.configure(&my_pins, my_baudrate);
 
-  // not using my_config, but instead using default configuration (NULL) 
+  // using my_config, but instead using default configuration (NULL) 
   my_nrf.initialise(&my_config);
-
-  // enable dynamic payloads
-  // my_nrf.dyn_payloads_enable();
 
   /**
    * set addresses for DATA_PIPE_0 - DATA_PIPE_3.
