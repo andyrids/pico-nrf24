@@ -52,7 +52,7 @@ int main(void)
    */
   nrf_manager_t my_config = {
     // RF Channel 
-    .channel = 110,
+    .channel = 120,
 
     // AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
     .address_width = AW_5_BYTES,
@@ -61,20 +61,20 @@ int main(void)
     .dyn_payloads = DYNPD_ENABLE,
 
     // data rate: RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
-    .data_rate = RF_DR_2MBPS,
+    .data_rate = RF_DR_1MBPS,
 
     // RF_PWR_NEG_18DBM, RF_PWR_NEG_12DBM, RF_PWR_NEG_6DBM, RF_PWR_0DBM
-    .power = RF_PWR_0DBM,
+    .power = RF_PWR_NEG_12DBM,
 
     // retransmission count: ARC_NONE...ARC_15RT
     .retr_count = ARC_10RT,
 
     // retransmission delay: ARD_250US, ARD_500US, ARD_750US, ARD_1000US
-    .retr_delay = ARD_250US 
+    .retr_delay = ARD_500US 
   };
 
   // SPI baudrate
-  uint32_t my_baudrate = 1000000;
+  uint32_t my_baudrate = 5000000;
 
   // provides access to driver functions
   nrf_client_t my_nrf;
@@ -85,7 +85,7 @@ int main(void)
   // configure GPIO pins and SPI
   my_nrf.configure(&my_pins, my_baudrate);
 
-  // using my_config, but instead using default configuration (NULL) 
+  // not using default configuration (my_nrf.initialise(NULL)) 
   my_nrf.initialise(&my_config);
 
   /**
@@ -107,7 +107,7 @@ int main(void)
   uint8_t payload_zero = 0;
 
   // holds payload_one sent by the transmitter
-  uint8_t payload_one[32];
+  uint8_t payload_one[5];
 
   // two byte struct sent by transmitter
   typedef struct payload_two_s { uint8_t one; uint8_t two; } payload_two_t;
@@ -131,7 +131,7 @@ int main(void)
         
         case DATA_PIPE_1:
           // read payload
-          my_nrf.read_packet(payload_one, FIVE_BYTES);
+          my_nrf.read_packet(payload_one, sizeof(payload_one));
 
           // receiving a five byte string payload on DATA_PIPE_1
           printf("\nPacket received:- Payload (%s) on data pipe (%d)\n", payload_one, pipe_number);

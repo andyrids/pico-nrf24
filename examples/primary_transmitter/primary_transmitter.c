@@ -53,7 +53,7 @@ int main(void)
    */
   nrf_manager_t my_config = {
     // RF Channel 
-    .channel = 110,
+    .channel = 120,
 
     // AW_3_BYTES, AW_4_BYTES, AW_5_BYTES
     .address_width = AW_5_BYTES,
@@ -62,20 +62,20 @@ int main(void)
     .dyn_payloads = DYNPD_ENABLE,
 
     // data rate: RF_DR_250KBPS, RF_DR_1MBPS, RF_DR_2MBPS
-    .data_rate = RF_DR_2MBPS,
+    .data_rate = RF_DR_1MBPS,
 
     // RF_PWR_NEG_18DBM, RF_PWR_NEG_12DBM, RF_PWR_NEG_6DBM, RF_PWR_0DBM
-    .power = RF_PWR_0DBM,
+    .power = RF_PWR_NEG_12DBM,
 
     // retransmission count: ARC_NONE...ARC_15RT
     .retr_count = ARC_10RT,
 
     // retransmission delay: ARD_250US, ARD_500US, ARD_750US, ARD_1000US
-    .retr_delay = ARD_250US 
+    .retr_delay = ARD_500US 
   };
 
   // SPI baudrate
-  uint32_t my_baudrate = 1000000;
+  uint32_t my_baudrate = 5000000;
 
   nrf_client_t my_nrf;
 
@@ -85,7 +85,7 @@ int main(void)
   // configure GPIO pins and SPI
   my_nrf.configure(&my_pins, my_baudrate);
 
-  // using my_config instead of using default configuration (NULL) 
+  // not using default configuration (my_nrf.initialise(NULL)) 
   my_nrf.initialise(&my_config);
 
   // set to Standby-I Mode
@@ -116,7 +116,7 @@ int main(void)
     // time packet was sent
     time_sent = to_us_since_boot(get_absolute_time()); // time sent
 
-    // send packet to receiver's DATA_PIPE_3 address
+    // send packet to receiver's DATA_PIPE_0 address
     success = my_nrf.send_packet(&payload_zero, sizeof(payload_zero));
 
     // time auto-acknowledge was received
@@ -131,7 +131,7 @@ int main(void)
       printf("\nPacket not sent:- Receiver not available.\n");
     }
 
-    sleep_ms(5000);
+    sleep_ms(3000);
 
     // send to receiver's DATA_PIPE_1 address
     my_nrf.tx_destination((uint8_t[]){0xC7,0xC7,0xC7,0xC7,0xC7});
@@ -140,7 +140,7 @@ int main(void)
     time_sent = to_us_since_boot(get_absolute_time()); // time sent
 
     // send packet to receiver's DATA_PIPE_1 address
-    success = my_nrf.send_packet(payload_one, FIVE_BYTES);
+    success = my_nrf.send_packet(payload_one, sizeof(payload_one));
     
     // time auto-acknowledge was received
     time_reply = to_us_since_boot(get_absolute_time()); // response time
@@ -154,7 +154,7 @@ int main(void)
       printf("\nPacket not sent:- Receiver not available.\n");
     }
 
-    sleep_ms(5000);
+    sleep_ms(3000);
 
     // send to receiver's DATA_PIPE_2 address
     my_nrf.tx_destination((uint8_t[]){0xC8,0xC7,0xC7,0xC7,0xC7});
@@ -177,7 +177,7 @@ int main(void)
       printf("\nPacket not sent:- Receiver not available.\n");
     }
 
-    sleep_ms(5000);
+    sleep_ms(3000);
   }
   
 }
