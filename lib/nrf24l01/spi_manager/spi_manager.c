@@ -28,7 +28,7 @@ void spi_manager_init_spi(spi_inst_t *instance, uint32_t baudrate) {
    * spi_set_format is also called within the pico-sdk spi_init function, with 
    * the same arguments as below. Function called here to illustrate settings.
    */
-  spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+  spi_set_format(instance, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
   return;
 } 
