@@ -15,5 +15,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialize the SDK
 pico_sdk_init()
 
+add_compile_options(-Wall -Wno-unused-function)
+
 add_subdirectory(lib)
 add_subdirectory(examples)
