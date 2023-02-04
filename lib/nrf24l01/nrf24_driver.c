@@ -1105,9 +1105,10 @@ static fn_status_t validate_config(nrf_manager_t *user_config) {
   }
 
   // validate RF power setting
-  for (size_t i = 0; i < 6; i += 2)
+  // validate RF power setting
+  for (size_t rf_pow = RF_PWR_NEG_18DBM; rf_pow <= RF_PWR_0DBM; rf_pow += 2)
   {
-    if (user_config->power == i) { valid_members++; }
+    if (user_config->power == rf_pow) { valid_members++; }
   }
 
   // validate retransmission count
@@ -1117,9 +1118,9 @@ static fn_status_t validate_config(nrf_manager_t *user_config) {
   }
 
   // validate retransmission delay
-  for (size_t i = 0; i < 48; i += 16)
+  for (size_t delay = ARD_250US; delay <= ARD_1000US; delay += 16)
   {
-    if (user_config->retr_delay == i) { valid_members++; }
+    if (user_config->retr_delay == delay) { valid_members++; }
   }
 
   fn_status_t status = (valid_members == 7) ? NRF_MNGR_OK : ERROR;
