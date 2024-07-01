@@ -21,7 +21,7 @@
 
 #include "error_manager.h"
 #include "hardware/spi.h"
-
+#include <pico/time.h>
 
 // corresponding SPI instance (SPI_0, SPI_1) when checking GPIO pins
 typedef enum spi_instance_e { SPI_0, SPI_1 } spi_instance_t;
