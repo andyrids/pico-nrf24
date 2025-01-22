@@ -19,7 +19,7 @@
 #ifndef NRF24L01_H
 #define NRF24L01_H
 
-#include "error_manager.h"
+#include "error_manager/error_manager.h"
 #include "hardware/spi.h"
 
 
