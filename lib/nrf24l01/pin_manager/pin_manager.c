@@ -60,31 +60,17 @@ void ce_put_low(uint8_t ce) {
  */
 static fn_status_t pin_manager_validate(uint8_t copi, uint8_t cipo, uint8_t sck) {
 
-  typedef struct validate_pin_e
-  {
-    uint8_t spi_pin;
-    pin_min_t min;
-    pin_max_t max;
-  } validate_pin_t;
+  // Can test the pins are valid by masking and comparing
+  fn_status_t status;
+  copi &= 3;
+  cipo &= 3;
+  sck  &= 3;
 
-  validate_pin_t spi_pins[3] = {
-    (validate_pin_t){ .spi_pin = cipo, .min = CIPO_MIN, .max = CIPO_MAX },
-    (validate_pin_t){ .spi_pin = copi, .min = COPI_MIN, .max = COPI_MAX },
-    (validate_pin_t){ .spi_pin = sck,  .min = SCK_MIN,  .max = SCK_MAX },
-  };
+  if ((copi == 3) && (cipo == 0) && (sck == 2))
+    status =  PIN_MNGR_OK;
+  else
+    status =  ERROR;
 
-  uint8_t valid_pins = 0;
-
-  for (size_t i = 0; i < ALL_PINS; i++)
-  {
-    for (size_t pin = spi_pins[i].min; pin <= spi_pins[i].max; pin += 4)
-    {
-      if (spi_pins[i].spi_pin == pin) { valid_pins++; }
-    }
-  }
-
-  fn_status_t status = (valid_pins == 3) ? PIN_MNGR_OK : ERROR;
-  
   return status;
 }
 
